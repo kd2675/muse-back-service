@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import web.common.core.response.base.dto.ResponseErrorDTO;
+import web.common.core.response.base.exception.GeneralException;
 import web.common.core.response.base.vo.Code;
 
 import java.util.stream.Collectors;
@@ -17,14 +18,17 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(MuseException.class)
-    public ResponseEntity<ResponseErrorDTO> handleMuseException(
-            MuseException ex,
+    @ExceptionHandler(GeneralException.class)
+    public ResponseEntity<ResponseErrorDTO> handleGeneralException(
+            GeneralException ex,
             WebRequest request) {
-        log.warn("MuseException: code={}, status={}, message={}", ex.getCode(), ex.getStatus(), ex.getMessage());
-        Code mappedCode = mapCode(ex.getCode());
-        ResponseErrorDTO errorResponse = ResponseErrorDTO.of(mappedCode, ex.getMessage());
-        return new ResponseEntity<>(errorResponse, HttpStatus.valueOf(ex.getStatus()));
+        Code errorCode = ex.getErrorCode();
+        log.warn("GeneralException: code={}, status={}, message={}",
+                errorCode,
+                errorCode.getHttpStatus().value(),
+                ex.getMessage());
+        ResponseErrorDTO errorResponse = ResponseErrorDTO.of(errorCode, ex.getMessage());
+        return new ResponseEntity<>(errorResponse, errorCode.getHttpStatus());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -56,20 +60,4 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    private Code mapCode(String code) {
-        if (code == null || code.isBlank()) {
-            return Code.BAD_REQUEST;
-        }
-
-        return switch (code) {
-            case "RESOURCE_NOT_FOUND" -> Code.NOT_FOUND;
-            case "VALIDATION_ERROR" -> Code.VALIDATION_ERROR;
-            case "UNAUTHORIZED" -> Code.UNAUTHORIZED;
-            case "FORBIDDEN" -> Code.FORBIDDEN;
-            case "CONFLICT" -> Code.CONFLICT;
-            case "INTERNAL_SERVER_ERROR" -> Code.INTERNAL_SERVER_ERROR;
-            case "SERVER_DOWN" -> Code.SERVER_DOWN;
-            default -> Code.BAD_REQUEST;
-        };
-    }
 }

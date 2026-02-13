@@ -1,185 +1,125 @@
 package muse.back.service.feature.contest.biz;
 
-import muse.back.service.common.exception.MuseException;
+import lombok.RequiredArgsConstructor;
 import muse.back.service.database.pub.dto.ContestDetailResponse;
 import muse.back.service.database.pub.dto.ContestEntryCreditResponse;
 import muse.back.service.database.pub.dto.ContestEntryResponse;
 import muse.back.service.database.pub.dto.ContestEntrySummaryResponse;
 import muse.back.service.database.pub.dto.ContestSummaryResponse;
+import muse.back.service.database.pub.entity.ContestEntry;
+import muse.back.service.database.pub.entity.ContestEntryCredit;
+import muse.back.service.database.pub.entity.ContestEntryLedger;
+import muse.back.service.database.pub.entity.Contest;
+import muse.back.service.database.pub.entity.ContestRule;
+import muse.back.service.database.pub.entity.ProfileArtist;
+import muse.back.service.database.pub.repository.ContestEntryCreditRepository;
+import muse.back.service.database.pub.repository.ContestEntryLedgerRepository;
+import muse.back.service.database.pub.repository.ContestEntryRepository;
+import muse.back.service.database.pub.repository.ContestRepository;
+import muse.back.service.database.pub.repository.ContestRuleRepository;
+import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import web.common.core.response.base.exception.GeneralException;
+import web.common.core.response.base.vo.Code;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ContestService {
 
     private static final DateTimeFormatter SUBMITTED_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    private final List<ContestEntrySummaryResponse> entryStore =
-            new CopyOnWriteArrayList<>(List.of(
-                    new ContestEntrySummaryResponse(
-                            "EN-101-1700001",
-                            101L,
-                            "빛의 레이어",
-                            "Layered Dawn",
-                            null,
-                            "SUBMITTED",
-                            "2026-02-02 10:45"
-                    ),
-                    new ContestEntrySummaryResponse(
-                            "EN-102-1700002",
-                            102L,
-                            "도시의 숨",
-                            "Urban Breath",
-                            null,
-                            "SUBMITTED",
-                            "2026-02-01 22:10"
-                    )
-            ));
-    private final ConcurrentHashMap<Long, Integer> entryCredits = new ConcurrentHashMap<>();
+    private final ContestRepository contestRepository;
+    private final ContestRuleRepository contestRuleRepository;
+    private final ContestEntryRepository contestEntryRepository;
+    private final ContestEntryCreditRepository contestEntryCreditRepository;
+    private final ContestEntryLedgerRepository contestEntryLedgerRepository;
+    private final ProfileArtistRepository profileArtistRepository;
 
     public List<ContestSummaryResponse> getActiveContests() {
-        return List.of(
-                new ContestSummaryResponse(
-                        101L,
-                        "빛의 레이어",
-                        "2026.02.01 - 2026.02.07",
-                        3000,
-                        420000,
-                        4,
-                        "ACTIVE"
-                ),
-                new ContestSummaryResponse(
-                        102L,
-                        "도시의 숨",
-                        "2026.02.01 - 2026.02.14",
-                        3000,
-                        680000,
-                        11,
-                        "ACTIVE"
-                ),
-                new ContestSummaryResponse(
-                        103L,
-                        "완벽한 정적",
-                        "2026.02.01 - 2026.02.28",
-                        3000,
-                        1250000,
-                        25,
-                        "ACTIVE"
-                ),
-                new ContestSummaryResponse(
-                        104L,
-                        "잔광의 초상",
-                        "2026.01.10 - 2026.01.31",
-                        3000,
-                        980000,
-                        0,
-                        "ENDED"
-                )
-        );
+        return contestRepository.findAllByOrderByContestIdAsc()
+                .stream()
+                .map(this::toContestSummary)
+                .toList();
     }
 
     public ContestDetailResponse getContestDetail(Long id) {
-        Map<Long, ContestDetailResponse> detailMap = Map.of(
-                101L,
-                new ContestDetailResponse(
-                        101L,
-                        "빛의 레이어",
-                        "도시와 자연의 경계에서 빛이 어떻게 층을 이루는지 기록해보세요.",
-                        "2026.02.01 - 2026.02.07",
-                        3000,
-                        420000,
-                        4,
-                        "ACTIVE",
-                        128,
-                        List.of(
-                                "1인 1작품만 제출 가능",
-                                "최소 3000px 이상의 해상도",
-                                "과도한 합성/AI 생성 금지",
-                                "투표는 A/B 방식으로 진행"
-                        )
-                ),
-                102L,
-                new ContestDetailResponse(
-                        102L,
-                        "도시의 숨",
-                        "도시의 온도와 사람들의 숨결을 담아낸 사진을 모집합니다.",
-                        "2026.02.01 - 2026.02.14",
-                        3000,
-                        680000,
-                        11,
-                        "ACTIVE",
-                        245,
-                        List.of(
-                                "1인 2작품까지 제출 가능",
-                                "야간 촬영 시 장노출 허용",
-                                "촬영 위치 표기 필수",
-                                "투표는 A/B 방식으로 진행"
-                        )
-                ),
-                103L,
-                new ContestDetailResponse(
-                        103L,
-                        "완벽한 정적",
-                        "정적인 순간의 균형과 질감을 포착한 작품을 기다립니다.",
-                        "2026.02.01 - 2026.02.28",
-                        3000,
-                        1250000,
-                        25,
-                        "ACTIVE",
-                        362,
-                        List.of(
-                                "노이즈 보정 최소화",
-                                "흑백 사진 허용",
-                                "촬영 장비 제한 없음",
-                                "투표는 A/B 방식으로 진행"
-                        )
-                )
+        Contest contest = contestRepository.findById(id)
+                .orElseThrow(() -> new GeneralException(
+                        Code.NOT_FOUND,
+                        String.format("Contest not found with id: '%s'", id)
+                ));
+        List<String> rules = contestRuleRepository
+                .findByContestIdOrderBySortOrderAsc(id)
+                .stream()
+                .map(ContestRule::getRuleText)
+                .toList();
+        return new ContestDetailResponse(
+                contest.getContestId(),
+                contest.getTheme(),
+                contest.getDescription(),
+                contest.getPeriod(),
+                contest.getEntryFee(),
+                contest.getPrizePool(),
+                contest.getDaysLeft(),
+                contest.getStatus(),
+                contest.getParticipationCount(),
+                rules
         );
-
-        ContestDetailResponse detail = detailMap.get(id);
-        if (detail == null) {
-            throw new MuseException.ResourceNotFoundException("Contest", "id", id);
-        }
-        return detail;
     }
 
+    @Transactional
     public ContestEntryResponse submitEntry(
             Long contestId,
+            Long userId,
             String title,
             String description,
             String fileName,
             String imageUrl
     ) {
-        ContestDetailResponse detail = getContestDetail(contestId);
-        if (!"ACTIVE".equals(detail.status())) {
-            throw new MuseException.ConflictException("Contest is not active");
+        Long artistId = resolveArtistId(userId);
+        Contest contest = contestRepository.findById(contestId)
+                .orElseThrow(() -> new GeneralException(
+                        Code.NOT_FOUND,
+                        String.format("Contest not found with id: '%s'", contestId)
+                ));
+        if (!"ACTIVE".equals(contest.getStatus())) {
+            throw new GeneralException(Code.CONFLICT, "Contest is not active");
         }
         if (imageUrl == null || imageUrl.isBlank()) {
-            throw new MuseException.ValidationException("Image URL is required");
+            throw new GeneralException(Code.VALIDATION_ERROR, "Image URL is required");
         }
         if (fileName == null || fileName.isBlank()) {
-            throw new MuseException.ValidationException("File name is required");
+            throw new GeneralException(Code.VALIDATION_ERROR, "File name is required");
         }
-        consumeEntryCredit(contestId);
         String entryId = "EN-" + contestId + "-" + System.currentTimeMillis();
-        String submittedAt = LocalDateTime.now().format(SUBMITTED_FORMATTER);
+        consumeEntryCredit(contestId, artistId);
 
-        entryStore.add(0, new ContestEntrySummaryResponse(
+        ContestEntry entry = new ContestEntry(
                 entryId,
+                artistId,
                 contestId,
-                detail.theme(),
                 title,
+                description,
+                fileName,
                 imageUrl,
-                "SUBMITTED",
-                submittedAt
+                "SUBMITTED"
+        );
+        contest.increaseParticipationCount();
+        contestRepository.save(contest);
+        contestEntryRepository.save(entry);
+        contestEntryLedgerRepository.save(new ContestEntryLedger(
+                artistId,
+                contestId,
+                -1,
+                "SUBMIT",
+                entryId
         ));
 
         return new ContestEntryResponse(
@@ -193,18 +133,34 @@ public class ContestService {
         );
     }
 
-    public ContestEntryCreditResponse purchaseEntryCredit(Long contestId) {
+    @Transactional
+    public ContestEntryCreditResponse purchaseEntryCredit(Long contestId, Long userId) {
+        Long artistId = resolveArtistId(userId);
         ContestDetailResponse detail = getContestDetail(contestId);
         if (!"ACTIVE".equals(detail.status())) {
-            throw new MuseException.ConflictException("Contest is not active");
+            throw new GeneralException(Code.CONFLICT, "Contest is not active");
         }
-        int credits = addEntryCredit(contestId);
+        ContestEntryCredit credit = getOrCreateEntryCreditForUpdate(contestId, artistId);
+        credit.increase(1);
+        contestEntryCreditRepository.save(credit);
+        contestEntryLedgerRepository.save(new ContestEntryLedger(
+                artistId,
+                contestId,
+                1,
+                "PURCHASE",
+                null
+        ));
+        int credits = credit.getBalance();
         return new ContestEntryCreditResponse(contestId, credits, "AVAILABLE");
     }
 
-    public ContestEntryCreditResponse getEntryCreditStatus(Long contestId) {
+    public ContestEntryCreditResponse getEntryCreditStatus(Long contestId, Long userId) {
+        Long artistId = resolveArtistId(userId);
         getContestDetail(contestId);
-        int credits = entryCredits.getOrDefault(contestId, 0);
+        int credits = contestEntryCreditRepository
+                .findByArtistIdAndContestId(artistId, contestId)
+                .map(ContestEntryCredit::getBalance)
+                .orElse(0);
         return new ContestEntryCreditResponse(
                 contestId,
                 credits,
@@ -212,26 +168,81 @@ public class ContestService {
         );
     }
 
-    private int addEntryCredit(Long contestId) {
-        return entryCredits.merge(contestId, 1, Integer::sum);
+    private ContestEntryCredit getOrCreateEntryCreditForUpdate(Long contestId, Long artistId) {
+        return contestEntryCreditRepository
+                .findByArtistIdAndContestIdForUpdate(artistId, contestId)
+                .orElseGet(() -> new ContestEntryCredit(artistId, contestId, 0));
     }
 
-    private void consumeEntryCredit(Long contestId) {
-        Integer current = entryCredits.get(contestId);
-        if (current == null || current <= 0) {
-            throw new MuseException.ForbiddenException("Entry credit required");
+    private void consumeEntryCredit(Long contestId, Long artistId) {
+        ContestEntryCredit credit = getOrCreateEntryCreditForUpdate(contestId, artistId);
+        int current = credit.getBalance();
+        if (current <= 0) {
+            throw new GeneralException(Code.FORBIDDEN, "Entry credit required");
         }
-        entryCredits.put(contestId, current - 1);
+        credit.decrease(1);
+        contestEntryCreditRepository.save(credit);
     }
 
-    public List<ContestEntrySummaryResponse> getMyEntries() {
-        return new ArrayList<>(entryStore);
+    public List<ContestEntrySummaryResponse> getMyEntries(Long userId) {
+        Long artistId = resolveArtistId(userId);
+        return contestEntryRepository.findByArtistIdOrderByCreateDateDesc(artistId)
+                .stream()
+                .map(this::toEntrySummary)
+                .toList();
     }
 
-    public void deleteEntry(String entryId) {
-        boolean removed = entryStore.removeIf(entry -> entry.entryId().equals(entryId));
-        if (!removed) {
-            throw new MuseException.ResourceNotFoundException("Entry", "id", entryId);
+    @Transactional
+    public void deleteEntry(String entryId, Long userId) {
+        Long artistId = resolveArtistId(userId);
+        ContestEntry entry = contestEntryRepository.findByEntryIdAndArtistId(entryId, artistId)
+                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, String.format("Entry not found with id: '%s'", entryId)));
+        contestEntryRepository.delete(entry);
+    }
+
+    private ContestEntrySummaryResponse toEntrySummary(ContestEntry entry) {
+        String theme = resolveContestTheme(entry.getContestId());
+        LocalDateTime createdAt = entry.getCreatedAt();
+        String submittedAt = createdAt != null
+                ? createdAt.format(SUBMITTED_FORMATTER)
+                : LocalDateTime.now().format(SUBMITTED_FORMATTER);
+        return new ContestEntrySummaryResponse(
+                entry.getEntryId(),
+                entry.getContestId(),
+                theme,
+                entry.getTitle(),
+                entry.getImageUrl(),
+                entry.getStatus(),
+                submittedAt
+        );
+    }
+
+    private String resolveContestTheme(Long contestId) {
+        try {
+            return getContestDetail(contestId).theme();
+        } catch (GeneralException ex) {
+            if (ex.getErrorCode() == Code.NOT_FOUND) {
+                return "Unknown Contest";
+            }
+            throw ex;
         }
+    }
+
+    private ContestSummaryResponse toContestSummary(Contest contest) {
+        return new ContestSummaryResponse(
+                contest.getContestId(),
+                contest.getTheme(),
+                contest.getPeriod(),
+                contest.getEntryFee(),
+                contest.getPrizePool(),
+                contest.getDaysLeft(),
+                contest.getStatus()
+        );
+    }
+
+    private Long resolveArtistId(Long userId) {
+        return profileArtistRepository.findByUserId(userId)
+                .map(ProfileArtist::getArtistId)
+                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Profile artist not configured"));
     }
 }

@@ -2,6 +2,7 @@ package muse.back.service.feature.contest.act;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import auth.common.core.context.UserContext;
 import muse.back.service.feature.contest.biz.ContestService;
 import muse.back.service.database.pub.dto.ContestEntrySummaryResponse;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -10,6 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import web.common.core.response.base.dto.ResponseDataDTO;
+import web.common.core.response.base.exception.GeneralException;
+import web.common.core.response.base.vo.Code;
 
 import java.util.List;
 
@@ -22,15 +25,29 @@ public class EntryController {
     private final ContestService contestService;
 
     @GetMapping
-    public ResponseDataDTO<List<ContestEntrySummaryResponse>> getMyEntries() {
+    public ResponseDataDTO<List<ContestEntrySummaryResponse>> getMyEntries(
+            UserContext userContext
+    ) {
+        Long userId = requireUserId(userContext);
         log.info("Get my contest entries");
-        return ResponseDataDTO.of(contestService.getMyEntries(), "출품 목록 조회 성공");
+        return ResponseDataDTO.of(contestService.getMyEntries(userId), "출품 목록 조회 성공");
     }
 
     @DeleteMapping("/{entryId}")
-    public ResponseDataDTO<Void> deleteEntry(@PathVariable String entryId) {
+    public ResponseDataDTO<Void> deleteEntry(
+            @PathVariable String entryId,
+            UserContext userContext
+    ) {
+        Long userId = requireUserId(userContext);
         log.info("Delete contest entry: entryId={}", entryId);
-        contestService.deleteEntry(entryId);
+        contestService.deleteEntry(entryId, userId);
         return ResponseDataDTO.of(null, "출품 삭제 성공");
+    }
+
+    private Long requireUserId(UserContext userContext) {
+        if (userContext == null || !userContext.isAuthenticated()) {
+            throw new GeneralException(Code.UNAUTHORIZED, "Login required");
+        }
+        return userContext.getUserId();
     }
 }
