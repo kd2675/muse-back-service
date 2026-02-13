@@ -1,4 +1,8 @@
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:muse-back-service/.env[.properties]
   application:
     name: muse-back-service
   profiles:
@@ -49,7 +53,7 @@ spring:
 
 # JWT 설정
 jwt:
-  secret: your-super-secret-key-change-this-in-production-12345-this-in-production-12345
+  secret: ${MUSE_JWT_SECRET}
   expiration: 3600000  # 1 hour in milliseconds
   refresh-expiration: 1209600000  # 14 days in milliseconds
 

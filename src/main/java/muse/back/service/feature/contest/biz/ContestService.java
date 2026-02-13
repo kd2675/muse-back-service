@@ -43,7 +43,7 @@ public class ContestService {
     private final ProfileArtistRepository profileArtistRepository;
 
     public List<ContestSummaryResponse> getActiveContests() {
-        return contestRepository.findAllByOrderByContestIdAsc()
+        return contestRepository.findByStatusOrderByDaysLeftAsc("ACTIVE")
                 .stream()
                 .map(this::toContestSummary)
                 .toList();
@@ -197,7 +197,33 @@ public class ContestService {
         Long artistId = resolveArtistId(userId);
         ContestEntry entry = contestEntryRepository.findByEntryIdAndArtistId(entryId, artistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, String.format("Entry not found with id: '%s'", entryId)));
+
+        // 이미 심사 중/완료된 출품은 삭제를 제한
+        if (!"SUBMITTED".equals(entry.getStatus())) {
+            throw new GeneralException(Code.CONFLICT, "Only submitted entries can be deleted");
+        }
+
+        Long contestId = entry.getContestId();
         contestEntryRepository.delete(entry);
+
+        // 출품 취소 시 참여 카운트를 되돌림
+        contestRepository.findById(contestId).ifPresent(contest -> {
+            contest.decreaseParticipationCount();
+            contestRepository.save(contest);
+        });
+
+        // 출품 취소 시 출품권 1개 환불
+        ContestEntryCredit credit = getOrCreateEntryCreditForUpdate(contestId, artistId);
+        credit.increase(1);
+        contestEntryCreditRepository.save(credit);
+
+        contestEntryLedgerRepository.save(new ContestEntryLedger(
+                artistId,
+                contestId,
+                1,
+                "DELETE",
+                entryId
+        ));
     }
 
     private ContestEntrySummaryResponse toEntrySummary(ContestEntry entry) {

@@ -39,7 +39,7 @@ public class PubDataConfig {
     @Primary
     @ConfigurationProperties("database.datasource.pub.master.configure")
     public DataSource pubMasterDatasource() {
-        return pubSlave1DatasourceProperties()
+        return pubMasterDatasourceProperties()
                 .initializeDataSourceBuilder()
                 .type(HikariDataSource.class)
                 .build();

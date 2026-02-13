@@ -46,4 +46,10 @@ public class Contest extends CommonDateEntity {
     public void increaseParticipationCount() {
         this.participationCount += 1;
     }
+
+    public void decreaseParticipationCount() {
+        if (this.participationCount > 0) {
+            this.participationCount -= 1;
+        }
+    }
 }
