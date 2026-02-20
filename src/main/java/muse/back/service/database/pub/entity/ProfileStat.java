@@ -44,4 +44,16 @@ public class ProfileStat extends CommonDateEntity {
         this.totalEarnings = totalEarnings;
         this.followers = followers;
     }
+
+    public void addAwards(int amount) {
+        if (amount > 0) {
+            this.totalAwards += amount;
+        }
+    }
+
+    public void addEarnings(int amount) {
+        if (amount > 0) {
+            this.totalEarnings += amount;
+        }
+    }
 }

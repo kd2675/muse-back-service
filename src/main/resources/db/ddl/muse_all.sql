@@ -1,5 +1,9 @@
 -- Contest entry credit / entry / ledger tables
 -- Generated: 2026-02-04
+drop schema MUSE;
+
+create schema MUSE;
+
 use MUSE;
 
 CREATE TABLE IF NOT EXISTS contest_entry_credit (
@@ -130,6 +134,10 @@ CREATE TABLE IF NOT EXISTS contest (
     prize_pool INT NOT NULL,
     days_left INT NOT NULL,
     status VARCHAR(20) NOT NULL,
+    submission_start_at DATETIME NULL,
+    submission_end_at DATETIME NULL,
+    voting_start_at DATETIME NULL,
+    voting_end_at DATETIME NULL,
     participation_count INT NOT NULL DEFAULT 0,
     create_date DATETIME NOT NULL,
     update_date DATETIME NOT NULL

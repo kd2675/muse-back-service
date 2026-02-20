@@ -1,9 +1,9 @@
 package muse.back.service.database.pub.dto;
 
-import java.util.List;
 import java.time.LocalDateTime;
+import java.util.List;
 
-public record ContestDetailResponse(
+public record AdminContestResponse(
         Long id,
         String theme,
         String description,

@@ -30,4 +30,10 @@ public class ContestRule extends CommonDateEntity {
 
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
+
+    public ContestRule(Long contestId, String ruleText, int sortOrder) {
+        this.contestId = contestId;
+        this.ruleText = ruleText;
+        this.sortOrder = sortOrder;
+    }
 }

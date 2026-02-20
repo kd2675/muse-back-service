@@ -59,4 +59,8 @@ public class ContestEntry extends CommonDateEntity {
         this.imageUrl = imageUrl;
         this.status = status;
     }
+
+    public void updateStatus(String status) {
+        this.status = status;
+    }
 }

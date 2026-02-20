@@ -33,4 +33,20 @@ public class ProfileAward extends CommonDateEntity {
 
     @Column(name = "period", length = 20, nullable = false)
     private String period;
+
+    public ProfileAward(
+            Long awardId,
+            Long artistId,
+            String contest,
+            String rankLabel,
+            String prize,
+            String period
+    ) {
+        this.awardId = awardId;
+        this.artistId = artistId;
+        this.contest = contest;
+        this.rankLabel = rankLabel;
+        this.prize = prize;
+        this.period = period;
+    }
 }

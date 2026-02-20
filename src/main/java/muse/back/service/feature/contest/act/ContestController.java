@@ -7,8 +7,12 @@ import muse.back.service.feature.contest.biz.ContestService;
 import muse.back.service.database.pub.dto.ContestDetailResponse;
 import muse.back.service.database.pub.dto.ContestEntryCreditResponse;
 import muse.back.service.database.pub.dto.ContestEntryRequest;
+import muse.back.service.database.pub.dto.ContestPublicEntryResponse;
+import muse.back.service.database.pub.dto.ContestRankingResponse;
 import muse.back.service.database.pub.dto.ContestEntryResponse;
 import muse.back.service.database.pub.dto.ContestSummaryResponse;
+import muse.back.service.database.pub.dto.ContestVoteRequest;
+import muse.back.service.database.pub.dto.ContestVoteResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +42,18 @@ public class ContestController {
     public ResponseDataDTO<ContestDetailResponse> getContestDetail(@PathVariable Long id) {
         log.info("Get contest detail: id={}", id);
         return ResponseDataDTO.of(contestService.getContestDetail(id), "콘테스트 상세 조회 성공");
+    }
+
+    @GetMapping("/{id}/entries")
+    public ResponseDataDTO<List<ContestPublicEntryResponse>> getContestEntries(@PathVariable Long id) {
+        log.info("Get contest entries: id={}", id);
+        return ResponseDataDTO.of(contestService.getContestEntries(id), "콘테스트 출품 목록 조회 성공");
+    }
+
+    @GetMapping("/{id}/ranking")
+    public ResponseDataDTO<List<ContestRankingResponse>> getContestRanking(@PathVariable Long id) {
+        log.info("Get contest ranking: id={}", id);
+        return ResponseDataDTO.of(contestService.getContestRanking(id), "콘테스트 랭킹 조회 성공");
     }
 
     @PostMapping("/{id}/entry-credits/purchase")
@@ -71,6 +87,24 @@ public class ContestController {
                         request.imageUrl()
                 ),
                 "콘테스트 출품 등록 성공"
+        );
+    }
+
+    @PostMapping("/{id}/votes")
+    public ResponseDataDTO<ContestVoteResponse> voteEntry(
+            @PathVariable Long id,
+            @RequestBody ContestVoteRequest request,
+            UserContext userContext
+    ) {
+        Long userId = requireUserId(userContext);
+        log.info("Vote contest entry: contestId={}, entryId={}", id, request.entryId());
+        return ResponseDataDTO.of(
+                contestService.voteEntry(
+                        id,
+                        userId,
+                        request.entryId()
+                ),
+                "콘테스트 투표 성공"
         );
     }
 

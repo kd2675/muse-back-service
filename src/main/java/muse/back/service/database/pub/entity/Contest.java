@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import muse.back.service.common.jpa.CommonDateEntity;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "contest")
@@ -40,8 +41,50 @@ public class Contest extends CommonDateEntity {
     @Column(name = "status", length = 20, nullable = false)
     private String status;
 
+    @Column(name = "submission_start_at")
+    private LocalDateTime submissionStartAt;
+
+    @Column(name = "submission_end_at")
+    private LocalDateTime submissionEndAt;
+
+    @Column(name = "voting_start_at")
+    private LocalDateTime votingStartAt;
+
+    @Column(name = "voting_end_at")
+    private LocalDateTime votingEndAt;
+
     @Column(name = "participation_count", nullable = false)
     private int participationCount;
+
+    public Contest(
+            Long contestId,
+            String theme,
+            String description,
+            String period,
+            int entryFee,
+            int prizePool,
+            int daysLeft,
+            String status,
+            LocalDateTime submissionStartAt,
+            LocalDateTime submissionEndAt,
+            LocalDateTime votingStartAt,
+            LocalDateTime votingEndAt,
+            int participationCount
+    ) {
+        this.contestId = contestId;
+        this.theme = theme;
+        this.description = description;
+        this.period = period;
+        this.entryFee = entryFee;
+        this.prizePool = prizePool;
+        this.daysLeft = daysLeft;
+        this.status = status;
+        this.submissionStartAt = submissionStartAt;
+        this.submissionEndAt = submissionEndAt;
+        this.votingStartAt = votingStartAt;
+        this.votingEndAt = votingEndAt;
+        this.participationCount = participationCount;
+    }
 
     public void increaseParticipationCount() {
         this.participationCount += 1;
@@ -51,5 +94,35 @@ public class Contest extends CommonDateEntity {
         if (this.participationCount > 0) {
             this.participationCount -= 1;
         }
+    }
+
+    public void updateContestInfo(
+            String theme,
+            String description,
+            String period,
+            int entryFee,
+            int prizePool,
+            int daysLeft,
+            String status,
+            LocalDateTime submissionStartAt,
+            LocalDateTime submissionEndAt,
+            LocalDateTime votingStartAt,
+            LocalDateTime votingEndAt
+    ) {
+        this.theme = theme;
+        this.description = description;
+        this.period = period;
+        this.entryFee = entryFee;
+        this.prizePool = prizePool;
+        this.daysLeft = daysLeft;
+        this.status = status;
+        this.submissionStartAt = submissionStartAt;
+        this.submissionEndAt = submissionEndAt;
+        this.votingStartAt = votingStartAt;
+        this.votingEndAt = votingEndAt;
+    }
+
+    public void markEnded() {
+        this.status = "ENDED";
     }
 }

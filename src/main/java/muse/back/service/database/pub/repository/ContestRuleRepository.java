@@ -8,4 +8,6 @@ import java.util.List;
 public interface ContestRuleRepository extends JpaRepository<ContestRule, Long> {
 
     List<ContestRule> findByContestIdOrderBySortOrderAsc(Long contestId);
+
+    void deleteByContestId(Long contestId);
 }
