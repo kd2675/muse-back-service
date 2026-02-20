@@ -32,7 +32,9 @@ CREATE TABLE IF NOT EXISTS contest_entry_ledger (
     reason VARCHAR(30) NOT NULL,
     ref_id VARCHAR(100) NULL,
     create_date DATETIME NOT NULL,
-    update_date DATETIME NOT NULL
+    update_date DATETIME NOT NULL,
+    CONSTRAINT uk_contest_entry_ledger_vote
+        UNIQUE (artist_id, contest_id, reason, ref_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_contest_entry_ledger_artist
@@ -67,8 +69,6 @@ CREATE TABLE IF NOT EXISTS gallery_category (
     title VARCHAR(100) NOT NULL,
     description VARCHAR(255),
     item_count INT NOT NULL DEFAULT 0,
-    color_from VARCHAR(20),
-    color_to VARCHAR(20),
     create_date DATETIME NOT NULL,
     update_date DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -94,6 +94,16 @@ CREATE TABLE IF NOT EXISTS artwork (
 
 CREATE INDEX idx_artwork_category_key
     ON artwork (category_key);
+
+CREATE TABLE IF NOT EXISTS artwork_asset (
+    artwork_id BIGINT PRIMARY KEY,
+    file_name VARCHAR(255) NOT NULL,
+    image_url VARCHAR(2048) NOT NULL,
+    create_date DATETIME NOT NULL,
+    update_date DATETIME NOT NULL,
+    CONSTRAINT fk_artwork_asset_artwork
+        FOREIGN KEY (artwork_id) REFERENCES artwork(artwork_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS home_hero (
     home_hero_id BIGINT AUTO_INCREMENT PRIMARY KEY,

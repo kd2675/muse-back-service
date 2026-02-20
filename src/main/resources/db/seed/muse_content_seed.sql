@@ -4,16 +4,16 @@
 use MUSE;
 
 INSERT INTO gallery_category (
-    category_key, title, description, item_count, color_from, color_to, create_date, update_date
+    category_key, title, description, item_count, create_date, update_date
 ) VALUES
-    ('nature', 'Nature', '고요한 자연의 리듬', 312, '#4C5B3C', '#C6D19C', NOW(), NOW()),
-    ('urban', 'Urban', '도시의 질감과 빛', 245, '#2E2E38', '#BFA7A0', NOW(), NOW()),
-    ('people', 'People', '인물의 서사', 198, '#3A2E2A', '#E3B587', NOW(), NOW()),
-    ('abstract', 'Abstract', '형태의 실험', 154, '#2B3A4A', '#C7A7E5', NOW(), NOW()),
-    ('fineart', 'Fine Art', '작품성 중심', 221, '#2E2A25', '#D7C7A8', NOW(), NOW()),
-    ('night', 'Night', '밤의 색감', 176, '#1B1D2E', '#5A7AA6', NOW(), NOW()),
-    ('macro', 'Macro', '미세한 디테일에 집중', 12, '#2F3A2F', '#F1C6B3', NOW(), NOW()),
-    ('landscape', 'Landscape', '광활한 풍경의 깊이', 18, '#4B3B2F', '#E2C08D', NOW(), NOW());
+    ('nature', 'Nature', '고요한 자연의 리듬', 312, NOW(), NOW()),
+    ('urban', 'Urban', '도시의 질감과 빛', 245, NOW(), NOW()),
+    ('people', 'People', '인물의 서사', 198, NOW(), NOW()),
+    ('abstract', 'Abstract', '형태의 실험', 154, NOW(), NOW()),
+    ('fineart', 'Fine Art', '작품성 중심', 221, NOW(), NOW()),
+    ('night', 'Night', '밤의 색감', 176, NOW(), NOW()),
+    ('macro', 'Macro', '미세한 디테일에 집중', 12, NOW(), NOW()),
+    ('landscape', 'Landscape', '광활한 풍경의 깊이', 18, NOW(), NOW());
 
 INSERT INTO artwork (
     artwork_id, title, artist, category_key, category_label, description, camera, lens,
@@ -72,6 +72,23 @@ INSERT INTO artwork (
     (353, 'Night Silence', 'Sora Kim', 'night', 'Night', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '#1C1B1F', '#8C6FF0', NOW(), NOW()),
     (354, 'Night Frame', 'Yuna Cho', 'night', 'Night', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '#2F3A2F', '#F1C6B3', NOW(), NOW());
 
+INSERT INTO artwork_asset (
+    artwork_id, file_name, image_url, create_date, update_date
+) VALUES
+    (1, 'glass-river.jpg', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (2, 'echoes-of-fog.jpg', 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1f?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (3, 'velvet-night.jpg', 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (4, 'bloomline.jpg', 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (201, 'stillness-of-air.jpg', 'https://images.unsplash.com/photo-1493244040629-496f6d136cc3?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (202, 'golden-horizon.jpg', 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (203, 'city-pulse.jpg', 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (301, 'nature-echo.jpg', 'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (311, 'urban-echo.jpg', 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (321, 'people-echo.jpg', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (331, 'abstract-echo.jpg', 'https://images.unsplash.com/photo-1494256997604-768d1f608cac?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (341, 'fineart-echo.jpg', 'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
+    (351, 'night-echo.jpg', 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1400&q=80', NOW(), NOW());
+
 INSERT INTO home_hero (
     badge, headline, subheadline, description, create_date, update_date
 ) VALUES (
@@ -108,17 +125,18 @@ INSERT INTO contest (
     (103, '완벽한 정적', '정적인 순간의 균형과 질감을 포착한 작품을 기다립니다.', '2026.02.01 - 2026.03.05', 3000, 1250000, 25, 'ACTIVE', '2026-02-01 00:00:00', '2026-02-28 23:59:59', '2026-03-01 00:00:00', '2026-03-05 23:59:59', 362, NOW(), NOW()),
     (104, '잔광의 초상', NULL, '2026.01.10 - 2026.01.31', 3000, 980000, 0, 'ENDED', '2026-01-10 00:00:00', '2026-01-24 23:59:59', '2026-01-25 00:00:00', '2026-01-31 23:59:59', 0, NOW(), NOW()),
     (105, '도시 야광 기록전', '야간 도시를 주제로 현재 전시 및 투표가 진행 중인 예시 콘테스트입니다.', '2026.02.01 - 2026.12.31', 3000, 540000, 300, 'ACTIVE', '2026-02-01 00:00:00', '2026-02-10 23:59:59', '2026-02-11 00:00:00', '2026-12-31 23:59:59', 3, NOW(), NOW()),
-    (106, '미래의 빛 프리뷰', '시작 전(UPCOMING) 상태 예시 콘테스트입니다.', '2026.03.20 - 2026.03.31', 3000, 300000, 47, 'UPCOMING', '2026-03-20 00:00:00', '2026-03-24 23:59:59', '2026-03-25 00:00:00', '2026-03-31 23:59:59', 0, NOW(), NOW());
+    (106, '미래의 빛 프리뷰', '시작 전(UPCOMING) 상태 예시 콘테스트입니다.', '2026.03.20 - 2026.03.31', 3000, 300000, 47, 'UPCOMING', '2026-03-20 00:00:00', '2026-03-24 23:59:59', '2026-03-25 00:00:00', '2026-03-31 23:59:59', 0, NOW(), NOW()),
+    (107, '하이콘트라스트 스터디', '출품 진행(SUBMISSION) 상태 테스트용 추가 콘테스트입니다.', '2026.02.15 - 2026.03.10', 5000, 450000, 18, 'ACTIVE', '2026-02-15 00:00:00', '2026-03-04 23:59:59', '2026-03-05 00:00:00', '2026-03-10 23:59:59', 0, NOW(), NOW());
 
 INSERT INTO contest_rule (
     contest_id, rule_text, sort_order, create_date, update_date
 ) VALUES
-    (101, '출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음)', 1, NOW(), NOW()),
+    (101, '해당 콘테스트 출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음, 콘테스트 간 공유 불가)', 1, NOW(), NOW()),
     (101, '최소 3000px 이상의 해상도', 2, NOW(), NOW()),
     (101, '과도한 합성/AI 생성 금지', 3, NOW(), NOW()),
     (101, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW()),
 
-    (102, '출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음)', 1, NOW(), NOW()),
+    (102, '해당 콘테스트 출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음, 콘테스트 간 공유 불가)', 1, NOW(), NOW()),
     (102, '야간 촬영 시 장노출 허용', 2, NOW(), NOW()),
     (102, '촬영 위치 표기 필수', 3, NOW(), NOW()),
     (102, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW()),
@@ -128,15 +146,20 @@ INSERT INTO contest_rule (
     (103, '촬영 장비 제한 없음', 3, NOW(), NOW()),
     (103, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW()),
 
-    (105, '출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음)', 1, NOW(), NOW()),
+    (105, '해당 콘테스트 출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음, 콘테스트 간 공유 불가)', 1, NOW(), NOW()),
     (105, '도시 야간 촬영/장노출 허용', 2, NOW(), NOW()),
     (105, '저작권 침해 및 과도한 합성 금지', 3, NOW(), NOW()),
     (105, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW()),
 
-    (106, '출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음)', 1, NOW(), NOW()),
+    (106, '해당 콘테스트 출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음, 콘테스트 간 공유 불가)', 1, NOW(), NOW()),
     (106, '최소 3000px 이상의 해상도', 2, NOW(), NOW()),
     (106, '과도한 합성/AI 생성 금지', 3, NOW(), NOW()),
-    (106, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW());
+    (106, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW()),
+
+    (107, '해당 콘테스트 출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음, 콘테스트 간 공유 불가)', 1, NOW(), NOW()),
+    (107, '최소 3000px 이상의 해상도', 2, NOW(), NOW()),
+    (107, '과도한 합성/AI 생성 금지', 3, NOW(), NOW()),
+    (107, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW());
 
 INSERT INTO profile_artist (
     artist_id, user_id, name, tagline, profile_color, create_date, update_date

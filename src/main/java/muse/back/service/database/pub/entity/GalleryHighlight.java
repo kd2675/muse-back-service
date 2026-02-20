@@ -27,4 +27,9 @@ public class GalleryHighlight extends CommonDateEntity {
 
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
+
+    public GalleryHighlight(Long artworkId, int sortOrder) {
+        this.artworkId = artworkId;
+        this.sortOrder = sortOrder;
+    }
 }

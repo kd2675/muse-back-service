@@ -14,8 +14,7 @@ import muse.back.service.database.pub.repository.HomeHeroRepository;
 import muse.back.service.database.pub.repository.HomePickRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import web.common.core.response.base.exception.GeneralException;
-import web.common.core.response.base.vo.Code;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -33,14 +32,14 @@ public class HomeService {
     private final ContestRepository contestRepository;
 
     public HomeResponse getHome() {
-        HomeHero heroEntity = homeHeroRepository.findTopByOrderByHomeHeroIdDesc()
-                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Home hero not configured"));
-        HomeResponse.Hero hero = new HomeResponse.Hero(
-                heroEntity.getBadge(),
-                heroEntity.getHeadline(),
-                heroEntity.getSubheadline(),
-                heroEntity.getDescription()
-        );
+        HomeResponse.Hero hero = homeHeroRepository.findTopByOrderByHomeHeroIdDesc()
+                .map(heroEntity -> new HomeResponse.Hero(
+                        heroEntity.getBadge(),
+                        heroEntity.getHeadline(),
+                        heroEntity.getSubheadline(),
+                        heroEntity.getDescription()
+                ))
+                .orElseGet(this::fallbackHero);
 
         List<HomePick> picks = homePickRepository.findAllByOrderBySortOrderAsc();
         Map<Long, Artwork> pickMap = artworkRepository
@@ -54,10 +53,18 @@ public class HomeService {
                 .map(this::toHomeArtworkCard)
                 .toList();
 
+        Map<String, Integer> categoryItemCounts = resolveCategoryItemCountMap();
         List<HomeResponse.CategoryCard> categories = galleryCategoryRepository
-                .findAllByOrderByItemCountDesc()
+                .findAllByOrderByCategoryKeyAsc()
                 .stream()
-                .map(this::toHomeCategoryCard)
+                .map(category -> toHomeCategoryCard(
+                        category,
+                        categoryItemCounts.getOrDefault(category.getCategoryKey(), 0)
+                ))
+                .sorted(Comparator
+                        .comparingInt(HomeResponse.CategoryCard::itemCount)
+                        .reversed()
+                        .thenComparing(HomeResponse.CategoryCard::title))
                 .toList();
 
         List<HomeResponse.ContestCard> contests = contestRepository
@@ -67,6 +74,15 @@ public class HomeService {
                 .toList();
 
         return new HomeResponse(hero, todaysPick, categories, contests);
+    }
+
+    private HomeResponse.Hero fallbackHero() {
+        return new HomeResponse.Hero(
+                "MUSE HOME",
+                "작품을 탐색하고 콘테스트를 준비하세요.",
+                "홈 데이터 초기화 중입니다.",
+                "홈 배너 데이터가 아직 준비되지 않았습니다. 갤러리와 콘테스트에서 최신 작품을 확인할 수 있습니다."
+        );
     }
 
     private HomeResponse.ArtworkCard toHomeArtworkCard(Artwork artwork) {
@@ -81,15 +97,25 @@ public class HomeService {
         );
     }
 
-    private HomeResponse.CategoryCard toHomeCategoryCard(GalleryCategory category) {
+    private HomeResponse.CategoryCard toHomeCategoryCard(
+            GalleryCategory category,
+            int itemCount
+    ) {
         return new HomeResponse.CategoryCard(
                 category.getCategoryKey(),
                 category.getTitle(),
                 category.getDescription(),
-                category.getItemCount(),
-                category.getColorFrom(),
-                category.getColorTo()
+                itemCount
         );
+    }
+
+    private Map<String, Integer> resolveCategoryItemCountMap() {
+        return artworkRepository.findCategoryArtworkCounts()
+                .stream()
+                .collect(Collectors.toMap(
+                        ArtworkRepository.CategoryArtworkCount::getCategoryKey,
+                        count -> Math.toIntExact(count.getItemCount())
+                ));
     }
 
     private HomeResponse.ContestCard toHomeContestCard(Contest contest) {

@@ -43,7 +43,7 @@ DELETE FROM contest_rule WHERE contest_id = 105;
 INSERT INTO contest_rule (
     contest_id, rule_text, sort_order, create_date, update_date
 ) VALUES
-    (105, '출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음)', 1, NOW(), NOW()),
+    (105, '해당 콘테스트 출품권 1개당 1회 출품 가능 (보유 시 횟수 제한 없음, 콘테스트 간 공유 불가)', 1, NOW(), NOW()),
     (105, '도시 야간 촬영/장노출 허용', 2, NOW(), NOW()),
     (105, '저작권 침해 및 과도한 합성 금지', 3, NOW(), NOW()),
     (105, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW());

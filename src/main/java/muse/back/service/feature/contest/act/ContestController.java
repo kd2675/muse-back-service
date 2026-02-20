@@ -84,7 +84,10 @@ public class ContestController {
                         request.title(),
                         request.description(),
                         request.fileName(),
-                        request.imageUrl()
+                        request.imageUrl(),
+                        request.fileSizeBytes(),
+                        request.imageWidthPx(),
+                        request.imageHeightPx()
                 ),
                 "콘테스트 출품 등록 성공"
         );

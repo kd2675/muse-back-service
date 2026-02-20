@@ -8,4 +8,6 @@ import java.util.List;
 public interface GalleryCategoryRepository extends JpaRepository<GalleryCategory, String> {
 
     List<GalleryCategory> findAllByOrderByItemCountDesc();
+
+    List<GalleryCategory> findAllByOrderByCategoryKeyAsc();
 }

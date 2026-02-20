@@ -4,8 +4,10 @@ import auth.common.core.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import muse.back.service.database.pub.dto.AdminContestResponse;
+import muse.back.service.database.pub.dto.AdminContestEntryStatusUpdateRequest;
 import muse.back.service.database.pub.dto.AdminContestUpsertRequest;
 import muse.back.service.database.pub.dto.ContestFinalizeResponse;
+import muse.back.service.database.pub.dto.ContestPublicEntryResponse;
 import muse.back.service.feature.contest.biz.ContestService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,6 +65,31 @@ public class ContestAdminController {
         requireAdmin(userContext);
         log.info("Finalize contest by admin: id={}", id);
         return ResponseDataDTO.of(contestService.finalizeContestResults(id), "콘테스트 결과 확정 성공");
+    }
+
+    @GetMapping("/{id}/entries")
+    public ResponseDataDTO<List<ContestPublicEntryResponse>> getContestEntriesForAdmin(
+            @PathVariable Long id,
+            UserContext userContext
+    ) {
+        requireAdmin(userContext);
+        log.info("Get contest entries by admin: id={}", id);
+        return ResponseDataDTO.of(contestService.getAdminContestEntries(id), "관리자 출품 목록 조회 성공");
+    }
+
+    @PutMapping("/{id}/entries/{entryId}/status")
+    public ResponseDataDTO<ContestPublicEntryResponse> updateEntryStatusForAdmin(
+            @PathVariable Long id,
+            @PathVariable String entryId,
+            @RequestBody AdminContestEntryStatusUpdateRequest request,
+            UserContext userContext
+    ) {
+        requireAdmin(userContext);
+        log.info("Update contest entry status by admin: contestId={}, entryId={}, status={}", id, entryId, request.status());
+        return ResponseDataDTO.of(
+                contestService.updateAdminEntryStatus(id, entryId, request.status()),
+                "출품 상태 변경 성공"
+        );
     }
 
     private void requireAdmin(UserContext userContext) {

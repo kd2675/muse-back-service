@@ -12,8 +12,6 @@ import muse.back.service.database.pub.repository.ProfilePortfolioRepository;
 import muse.back.service.database.pub.repository.ProfileStatRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import web.common.core.response.base.exception.GeneralException;
-import web.common.core.response.base.vo.Code;
 
 import java.util.List;
 
@@ -29,10 +27,16 @@ public class ProfileService {
 
     public ProfileSummaryResponse getProfileSummary(Long userId) {
         ProfileArtist artist = profileArtistRepository.findByUserId(userId)
-                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Profile artist not configured"));
+                .orElseGet(() -> fallbackArtist(userId));
 
         ProfileStat stat = profileStatRepository.findByArtistId(artist.getArtistId())
-                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Profile stats not configured"));
+                .orElseGet(() -> new ProfileStat(
+                        artist.getArtistId(),
+                        0,
+                        0,
+                        0,
+                        0
+                ));
 
         List<ProfileSummaryResponse.PortfolioItem> portfolio = profilePortfolioRepository
                 .findByArtistIdOrderByPortfolioIdAsc(artist.getArtistId())
@@ -51,6 +55,16 @@ public class ProfileService {
                 toStats(stat),
                 portfolio,
                 awards
+        );
+    }
+
+    private ProfileArtist fallbackArtist(Long userId) {
+        return new ProfileArtist(
+                userId,
+                userId,
+                "Artist " + userId,
+                "프로필 초기화 전",
+                "#2B2A28"
         );
     }
 

@@ -17,6 +17,7 @@ public record GalleryCategoryResponse(
             Long id,
             String title,
             String artist,
+            String imageUrl,
             String colorFrom,
             String colorTo
     ) {}

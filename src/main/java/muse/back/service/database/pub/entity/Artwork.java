@@ -57,4 +57,36 @@ public class Artwork extends CommonDateEntity {
 
     @Column(name = "color_to", length = 20)
     private String colorTo;
+
+    public Artwork(
+            Long artworkId,
+            String title,
+            String artist,
+            String categoryKey,
+            String categoryLabel,
+            String description,
+            String camera,
+            String lens,
+            String focalLength,
+            String aperture,
+            String shutterSpeed,
+            String iso,
+            String colorFrom,
+            String colorTo
+    ) {
+        this.artworkId = artworkId;
+        this.title = title;
+        this.artist = artist;
+        this.categoryKey = categoryKey;
+        this.categoryLabel = categoryLabel;
+        this.description = description;
+        this.camera = camera;
+        this.lens = lens;
+        this.focalLength = focalLength;
+        this.aperture = aperture;
+        this.shutterSpeed = shutterSpeed;
+        this.iso = iso;
+        this.colorFrom = colorFrom;
+        this.colorTo = colorTo;
+    }
 }

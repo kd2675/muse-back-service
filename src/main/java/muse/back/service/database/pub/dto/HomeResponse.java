@@ -29,9 +29,7 @@ public record HomeResponse(
             String key,
             String title,
             String description,
-            int itemCount,
-            String colorFrom,
-            String colorTo
+            int itemCount
     ) {}
 
     public record ContestCard(

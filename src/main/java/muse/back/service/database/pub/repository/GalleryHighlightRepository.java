@@ -8,4 +8,6 @@ import java.util.List;
 public interface GalleryHighlightRepository extends JpaRepository<GalleryHighlight, Long> {
 
     List<GalleryHighlight> findAllByOrderBySortOrderAsc();
+
+    void deleteByArtworkId(Long artworkId);
 }

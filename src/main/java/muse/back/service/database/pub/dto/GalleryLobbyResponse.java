@@ -11,6 +11,7 @@ public record GalleryLobbyResponse(
             String title,
             String artist,
             String category,
+            String imageUrl,
             String colorFrom,
             String colorTo
     ) {}
@@ -19,8 +20,6 @@ public record GalleryLobbyResponse(
             String key,
             String title,
             String description,
-            int itemCount,
-            String colorFrom,
-            String colorTo
+            int itemCount
     ) {}
 }

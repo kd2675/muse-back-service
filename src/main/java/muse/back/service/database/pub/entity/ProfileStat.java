@@ -56,4 +56,16 @@ public class ProfileStat extends CommonDateEntity {
             this.totalEarnings += amount;
         }
     }
+
+    public void addWorks(int amount) {
+        if (amount > 0) {
+            this.totalWorks += amount;
+        }
+    }
+
+    public void removeWorks(int amount) {
+        if (amount > 0) {
+            this.totalWorks = Math.max(0, this.totalWorks - amount);
+        }
+    }
 }

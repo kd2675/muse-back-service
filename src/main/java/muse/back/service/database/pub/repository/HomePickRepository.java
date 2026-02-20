@@ -8,4 +8,6 @@ import java.util.List;
 public interface HomePickRepository extends JpaRepository<HomePick, Long> {
 
     List<HomePick> findAllByOrderBySortOrderAsc();
+
+    void deleteByArtworkId(Long artworkId);
 }

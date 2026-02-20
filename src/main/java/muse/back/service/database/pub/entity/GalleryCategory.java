@@ -28,9 +28,29 @@ public class GalleryCategory extends CommonDateEntity {
     @Column(name = "item_count", nullable = false)
     private int itemCount;
 
-    @Column(name = "color_from", length = 20)
-    private String colorFrom;
+    public GalleryCategory(
+            String categoryKey,
+            String title,
+            String description,
+            int itemCount
+    ) {
+        this.categoryKey = categoryKey;
+        this.title = title;
+        this.description = description;
+        this.itemCount = itemCount;
+    }
 
-    @Column(name = "color_to", length = 20)
-    private String colorTo;
+    public void updateAdminFields(
+            String title,
+            String description,
+            int itemCount
+    ) {
+        this.title = title;
+        this.description = description;
+        this.itemCount = itemCount;
+    }
+
+    public void adjustItemCount(int delta) {
+        this.itemCount = Math.max(0, this.itemCount + delta);
+    }
 }

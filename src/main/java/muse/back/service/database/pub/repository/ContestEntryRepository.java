@@ -11,9 +11,13 @@ public interface ContestEntryRepository extends JpaRepository<ContestEntry, Stri
 
     List<ContestEntry> findByArtistIdOrderByCreateDateDesc(Long artistId);
 
+    List<ContestEntry> findByContestIdOrderByCreateDateDesc(Long contestId);
+
     List<ContestEntry> findByContestIdAndStatusInOrderByCreateDateDesc(Long contestId, Collection<String> statuses);
 
     List<ContestEntry> findByContestIdAndStatusIn(Long contestId, Collection<String> statuses);
+
+    long countByContestId(Long contestId);
 
     boolean existsByContestIdAndStatusIn(Long contestId, Collection<String> statuses);
 

@@ -51,12 +51,6 @@ spring:
       repositories:
         enabled: false
 
-# JWT 설정
-jwt:
-  secret: ${MUSE_JWT_SECRET}
-  expiration: 3600000  # 1 hour in milliseconds
-  refresh-expiration: 1209600000  # 14 days in milliseconds
-
 eureka:
   client:
     serviceUrl:

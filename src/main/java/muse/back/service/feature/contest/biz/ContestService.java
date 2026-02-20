@@ -28,6 +28,7 @@ import muse.back.service.database.pub.repository.ContestRuleRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import muse.back.service.database.pub.repository.ProfileAwardRepository;
 import muse.back.service.database.pub.repository.ProfileStatRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import web.common.core.response.base.exception.GeneralException;
@@ -43,6 +44,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -50,19 +52,25 @@ import java.util.Set;
 public class ContestService {
 
     private static final DateTimeFormatter SUBMITTED_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String STATUS_SUBMITTED = "SUBMITTED";
     private static final Set<String> ENTRY_VISIBLE_STATUSES = Set.of("SUBMITTED", "REVIEWING", "APPROVED");
+    private static final Set<String> ENTRY_VISIBLE_STATUSES_ENDED = Set.of("SUBMITTED", "REVIEWING", "APPROVED", "REJECTED");
     private static final String LEDGER_REASON_VOTE = "VOTE";
     private static final String VOTE_REF_PREFIX = "ENTRY:";
     private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
     private static final String PHASE_UPCOMING = "UPCOMING";
     private static final String PHASE_SUBMISSION = "SUBMISSION";
+    private static final String PHASE_REVIEW = "REVIEW";
     private static final String PHASE_VOTING = "VOTING";
     private static final String PHASE_ENDED = "ENDED";
     private static final Set<String> FINALIZED_STATUSES = Set.of("APPROVED", "REJECTED");
     private static final String DEFAULT_STATUS_ACTIVE = "ACTIVE";
-    private static final Set<String> LIST_VISIBLE_STATUSES = Set.of("ACTIVE", "UPCOMING");
+    private static final Set<String> LIST_VISIBLE_STATUSES = Set.of("ACTIVE", "UPCOMING", "ENDED");
+    private static final Set<String> ADMIN_REVIEWABLE_STATUSES = Set.of("REVIEWING", "APPROVED", "REJECTED");
+    private static final long MAX_FILE_SIZE_BYTES = 100L * 1024L * 1024L;
+    private static final int MIN_IMAGE_RESOLUTION_PX = 3000;
+    private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png");
 
     private final ContestRepository contestRepository;
     private final ContestRuleRepository contestRuleRepository;
@@ -74,17 +82,21 @@ public class ContestService {
     private final ProfileStatRepository profileStatRepository;
 
     public List<ContestSummaryResponse> getActiveContests() {
+        LocalDateTime currentTime = now();
         return contestRepository.findAllByOrderByContestIdAsc()
                 .stream()
                 .filter(contest -> LIST_VISIBLE_STATUSES.contains(contest.getStatus()))
-                .map(this::toContestSummary)
+                .sorted(contestPhaseOrderComparator(currentTime))
+                .map(contest -> toContestSummary(contest, currentTime))
                 .toList();
     }
 
     public List<AdminContestResponse> getAdminContests() {
+        LocalDateTime currentTime = now();
         return contestRepository.findAllByOrderByContestIdAsc()
                 .stream()
-                .map(this::toAdminContestResponse)
+                .sorted(contestPhaseOrderComparator(currentTime))
+                .map(contest -> toAdminContestResponse(contest, currentTime))
                 .toList();
     }
 
@@ -112,7 +124,7 @@ public class ContestService {
         );
         contestRepository.save(contest);
         replaceContestRules(contestId, request.rules());
-        return toAdminContestResponse(contest);
+        return toAdminContestResponse(contest, now);
     }
 
     @Transactional
@@ -135,7 +147,7 @@ public class ContestService {
         );
         contestRepository.save(contest);
         replaceContestRules(contestId, request.rules());
-        return toAdminContestResponse(contest);
+        return toAdminContestResponse(contest, now);
     }
 
     @Transactional
@@ -228,7 +240,8 @@ public class ContestService {
 
     public ContestDetailResponse getContestDetail(Long id) {
         Contest contest = getContestOrThrow(id);
-        String phase = resolveContestPhase(contest, now());
+        LocalDateTime currentTime = now();
+        String phase = resolveContestPhase(contest, currentTime);
         List<String> rules = contestRuleRepository
                 .findByContestIdOrderBySortOrderAsc(id)
                 .stream()
@@ -241,22 +254,24 @@ public class ContestService {
                 contest.getPeriod(),
                 contest.getEntryFee(),
                 contest.getPrizePool(),
-                computeDaysLeft(contest.getVotingEndAt(), now()),
+                computeDaysLeft(contest.getVotingEndAt(), currentTime),
                 contest.getStatus(),
                 phase,
                 contest.getSubmissionStartAt(),
                 contest.getSubmissionEndAt(),
                 contest.getVotingStartAt(),
                 contest.getVotingEndAt(),
-                contest.getParticipationCount(),
+                resolveParticipationCount(contest.getContestId()),
                 rules
         );
     }
 
     public List<ContestPublicEntryResponse> getContestEntries(Long contestId) {
-        getContestDetail(contestId);
+        Contest contest = getContestOrThrow(contestId);
+        String phase = resolveContestPhase(contest, now());
+        Set<String> visibleStatuses = resolveVisibleStatusesForPublicPhase(phase);
         List<ContestEntry> entries = contestEntryRepository
-                .findByContestIdAndStatusInOrderByCreateDateDesc(contestId, ENTRY_VISIBLE_STATUSES);
+                .findByContestIdAndStatusInOrderByCreateDateDesc(contestId, visibleStatuses);
         return toPublicEntryResponses(entries);
     }
 
@@ -267,7 +282,10 @@ public class ContestService {
             String title,
             String description,
             String fileName,
-            String imageUrl
+            String imageUrl,
+            Long fileSizeBytes,
+            Integer imageWidthPx,
+            Integer imageHeightPx
     ) {
         Long artistId = resolveArtistId(userId);
         Contest contest = getContestOrThrow(contestId);
@@ -278,7 +296,8 @@ public class ContestService {
         if (fileName == null || fileName.isBlank()) {
             throw new GeneralException(Code.VALIDATION_ERROR, "File name is required");
         }
-        String entryId = "EN-" + contestId + "-" + System.currentTimeMillis();
+        validateUploadedFile(fileName, fileSizeBytes, imageWidthPx, imageHeightPx);
+        String entryId = generateEntryId(contestId);
         consumeEntryCredit(contestId, artistId);
 
         ContestEntry entry = new ContestEntry(
@@ -301,6 +320,9 @@ public class ContestService {
                 "SUBMIT",
                 entryId
         ));
+        ProfileStat profileStat = findOrCreateProfileStat(artistId);
+        profileStat.addWorks(1);
+        profileStatRepository.save(profileStat);
 
         return new ContestEntryResponse(
                 contestId,
@@ -360,13 +382,17 @@ public class ContestService {
             throw new GeneralException(Code.CONFLICT, "Already voted for this entry");
         }
 
-        contestEntryLedgerRepository.save(new ContestEntryLedger(
-                artistId,
-                contestId,
-                0,
-                LEDGER_REASON_VOTE,
-                voteRefId
-        ));
+        try {
+            contestEntryLedgerRepository.save(new ContestEntryLedger(
+                    artistId,
+                    contestId,
+                    0,
+                    LEDGER_REASON_VOTE,
+                    voteRefId
+            ));
+        } catch (DataIntegrityViolationException ex) {
+            throw new GeneralException(Code.CONFLICT, "Already voted for this entry");
+        }
 
         long selectedEntryVoteCount = countVotesBySelectedEntry(contestId)
                 .getOrDefault(entryId, 0L);
@@ -378,9 +404,11 @@ public class ContestService {
     }
 
     public List<ContestRankingResponse> getContestRanking(Long contestId) {
-        getContestDetail(contestId);
+        Contest contest = getContestOrThrow(contestId);
+        String phase = resolveContestPhase(contest, now());
+        Set<String> visibleStatuses = resolveVisibleStatusesForPublicPhase(phase);
         List<ContestEntry> entries = contestEntryRepository
-                .findByContestIdAndStatusIn(contestId, ENTRY_VISIBLE_STATUSES);
+                .findByContestIdAndStatusIn(contestId, visibleStatuses);
         if (entries.isEmpty()) {
             return List.of();
         }
@@ -425,6 +453,40 @@ public class ContestService {
         );
     }
 
+    public List<ContestPublicEntryResponse> getAdminContestEntries(Long contestId) {
+        getContestOrThrow(contestId);
+        List<ContestEntry> entries = contestEntryRepository.findByContestIdOrderByCreateDateDesc(contestId);
+        return toPublicEntryResponses(entries);
+    }
+
+    @Transactional
+    public ContestPublicEntryResponse updateAdminEntryStatus(Long contestId, String entryId, String status) {
+        Contest contest = getContestOrThrow(contestId);
+        ensureAdminReviewWindow(contest);
+        ContestEntry entry = contestEntryRepository.findByEntryIdAndContestId(entryId, contestId)
+                .orElseThrow(() -> new GeneralException(
+                        Code.NOT_FOUND,
+                        String.format("Entry not found with id: '%s'", entryId)
+                ));
+        String normalized = normalizeAdminEntryStatus(status);
+        entry.updateStatus(normalized);
+        contestEntryRepository.save(entry);
+
+        String artistName = profileArtistRepository.findById(entry.getArtistId())
+                .map(ProfileArtist::getName)
+                .orElse("Unknown Artist");
+
+        return new ContestPublicEntryResponse(
+                entry.getEntryId(),
+                entry.getContestId(),
+                entry.getTitle(),
+                entry.getImageUrl(),
+                artistName,
+                entry.getStatus(),
+                formatSubmittedAt(entry)
+        );
+    }
+
     private ContestEntryCredit getOrCreateEntryCreditForUpdate(Long contestId, Long artistId) {
         return contestEntryCreditRepository
                 .findByArtistIdAndContestIdForUpdate(artistId, contestId)
@@ -435,7 +497,7 @@ public class ContestService {
         ContestEntryCredit credit = getOrCreateEntryCreditForUpdate(contestId, artistId);
         int current = credit.getBalance();
         if (current <= 0) {
-            throw new GeneralException(Code.FORBIDDEN, "Entry credit required");
+            throw new GeneralException(Code.FORBIDDEN, "Entry credit required for this contest");
         }
         credit.decrease(1);
         contestEntryCreditRepository.save(credit);
@@ -481,6 +543,9 @@ public class ContestService {
                 "DELETE",
                 entryId
         ));
+        ProfileStat profileStat = findOrCreateProfileStat(artistId);
+        profileStat.removeWorks(1);
+        profileStatRepository.save(profileStat);
     }
 
     private ContestEntrySummaryResponse toEntrySummary(ContestEntry entry) {
@@ -564,6 +629,17 @@ public class ContestService {
         return VOTE_REF_PREFIX + entryId;
     }
 
+    private String generateEntryId(Long contestId) {
+        return "EN-" + contestId + "-" + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    private Set<String> resolveVisibleStatusesForPublicPhase(String phase) {
+        if (PHASE_ENDED.equals(phase)) {
+            return ENTRY_VISIBLE_STATUSES_ENDED;
+        }
+        return ENTRY_VISIBLE_STATUSES;
+    }
+
     private String formatSubmittedAt(ContestEntry entry) {
         LocalDateTime createdAt = entry.getCreatedAt();
         return createdAt != null
@@ -577,6 +653,54 @@ public class ContestService {
         }
     }
 
+    private void validateUploadedFile(
+            String fileName,
+            Long fileSizeBytes,
+            Integer imageWidthPx,
+            Integer imageHeightPx
+    ) {
+        String normalizedName = fileName.trim().toLowerCase();
+        boolean validExtension = ALLOWED_IMAGE_EXTENSIONS.stream()
+                .anyMatch(normalizedName::endsWith);
+        if (!validExtension) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Only JPG/PNG files are allowed");
+        }
+        if (fileSizeBytes == null || fileSizeBytes <= 0L) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "File size is required");
+        }
+        if (fileSizeBytes > MAX_FILE_SIZE_BYTES) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "File size must be 100MB or less");
+        }
+        if (imageWidthPx == null || imageHeightPx == null) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Image resolution is required");
+        }
+        if (imageWidthPx < MIN_IMAGE_RESOLUTION_PX || imageHeightPx < MIN_IMAGE_RESOLUTION_PX) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Image resolution must be at least 3000px on both width and height");
+        }
+    }
+
+    private ProfileStat findOrCreateProfileStat(Long artistId) {
+        return profileStatRepository.findByArtistId(artistId)
+                .orElseGet(() -> profileStatRepository.save(new ProfileStat(
+                        artistId,
+                        0,
+                        0,
+                        0,
+                        0
+                )));
+    }
+
+    private String normalizeAdminEntryStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Status is required");
+        }
+        String normalized = status.trim().toUpperCase();
+        if (!ADMIN_REVIEWABLE_STATUSES.contains(normalized)) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Invalid entry status");
+        }
+        return normalized;
+    }
+
     private String resolveContestTheme(Long contestId) {
         try {
             return getContestDetail(contestId).theme();
@@ -588,15 +712,15 @@ public class ContestService {
         }
     }
 
-    private ContestSummaryResponse toContestSummary(Contest contest) {
-        String phase = resolveContestPhase(contest, now());
+    private ContestSummaryResponse toContestSummary(Contest contest, LocalDateTime currentTime) {
+        String phase = resolveContestPhase(contest, currentTime);
         return new ContestSummaryResponse(
                 contest.getContestId(),
                 contest.getTheme(),
                 contest.getPeriod(),
                 contest.getEntryFee(),
                 contest.getPrizePool(),
-                computeDaysLeft(contest.getVotingEndAt(), now()),
+                computeDaysLeft(contest.getVotingEndAt(), currentTime),
                 contest.getStatus(),
                 phase,
                 contest.getSubmissionStartAt(),
@@ -685,12 +809,12 @@ public class ContestService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private AdminContestResponse toAdminContestResponse(Contest contest) {
+    private AdminContestResponse toAdminContestResponse(Contest contest, LocalDateTime currentTime) {
         List<String> rules = contestRuleRepository.findByContestIdOrderBySortOrderAsc(contest.getContestId())
                 .stream()
                 .map(ContestRule::getRuleText)
                 .toList();
-        String phase = resolveContestPhase(contest, now());
+        String phase = resolveContestPhase(contest, currentTime);
         return new AdminContestResponse(
                 contest.getContestId(),
                 contest.getTheme(),
@@ -698,16 +822,42 @@ public class ContestService {
                 contest.getPeriod(),
                 contest.getEntryFee(),
                 contest.getPrizePool(),
-                computeDaysLeft(contest.getVotingEndAt(), now()),
+                computeDaysLeft(contest.getVotingEndAt(), currentTime),
                 contest.getStatus(),
                 phase,
                 contest.getSubmissionStartAt(),
                 contest.getSubmissionEndAt(),
                 contest.getVotingStartAt(),
                 contest.getVotingEndAt(),
-                contest.getParticipationCount(),
+                resolveParticipationCount(contest.getContestId()),
                 rules
         );
+    }
+
+    private Comparator<Contest> contestPhaseOrderComparator(LocalDateTime currentTime) {
+        return Comparator
+                .comparingInt((Contest contest) -> resolvePhaseDisplayPriority(resolveContestPhase(contest, currentTime)))
+                .thenComparing(Contest::getContestId);
+    }
+
+    private int resolvePhaseDisplayPriority(String phase) {
+        if (PHASE_VOTING.equals(phase)) {
+            return 0;
+        }
+        if (PHASE_REVIEW.equals(phase)) {
+            return 1;
+        }
+        if (PHASE_SUBMISSION.equals(phase)) {
+            return 2;
+        }
+        if (PHASE_UPCOMING.equals(phase)) {
+            return 3;
+        }
+        return 4;
+    }
+
+    private int resolveParticipationCount(Long contestId) {
+        return Math.toIntExact(contestEntryRepository.countByContestId(contestId));
     }
 
     private void replaceContestRules(Long contestId, List<String> rules) {
@@ -776,6 +926,17 @@ public class ContestService {
         }
     }
 
+    private void ensureAdminReviewWindow(Contest contest) {
+        LocalDateTime currentTime = now();
+        String phase = resolveContestPhase(contest, currentTime);
+        if (!PHASE_REVIEW.equals(phase)) {
+            throw new GeneralException(
+                    Code.CONFLICT,
+                    "Entry review is allowed only during review phase"
+            );
+        }
+    }
+
     private String resolveContestPhase(Contest contest, LocalDateTime currentTime) {
         LocalDateTime submissionStart = contest.getSubmissionStartAt();
         LocalDateTime submissionEnd = contest.getSubmissionEndAt();
@@ -790,6 +951,9 @@ public class ContestService {
         }
         if (!currentTime.isAfter(submissionEnd)) {
             return PHASE_SUBMISSION;
+        }
+        if (currentTime.isBefore(votingStart)) {
+            return PHASE_REVIEW;
         }
         if (!currentTime.isBefore(votingStart) && !currentTime.isAfter(votingEnd)) {
             return PHASE_VOTING;
