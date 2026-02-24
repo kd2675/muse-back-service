@@ -5,7 +5,7 @@ import java.util.List;
 public record HomeResponse(
         Hero hero,
         List<ArtworkCard> todaysPick,
-        List<CategoryCard> galleryCategories,
+        List<MuseumCard> featuredMuseums,
         List<ContestCard> activeContests
 ) {
     public record Hero(
@@ -25,11 +25,12 @@ public record HomeResponse(
             String colorTo
     ) {}
 
-    public record CategoryCard(
-            String key,
-            String title,
-            String description,
-            int itemCount
+    public record MuseumCard(
+            Long museumId,
+            String name,
+            String ownerName,
+            int artworkCount,
+            String coverImageUrl
     ) {}
 
     public record ContestCard(

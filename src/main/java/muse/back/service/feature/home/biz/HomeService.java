@@ -4,14 +4,18 @@ import lombok.RequiredArgsConstructor;
 import muse.back.service.database.pub.dto.HomeResponse;
 import muse.back.service.database.pub.entity.Artwork;
 import muse.back.service.database.pub.entity.Contest;
-import muse.back.service.database.pub.entity.GalleryCategory;
 import muse.back.service.database.pub.entity.HomeHero;
 import muse.back.service.database.pub.entity.HomePick;
+import muse.back.service.database.pub.entity.Museum;
+import muse.back.service.database.pub.entity.MuseumArtwork;
+import muse.back.service.database.pub.entity.ProfileArtist;
 import muse.back.service.database.pub.repository.ArtworkRepository;
 import muse.back.service.database.pub.repository.ContestRepository;
-import muse.back.service.database.pub.repository.GalleryCategoryRepository;
 import muse.back.service.database.pub.repository.HomeHeroRepository;
 import muse.back.service.database.pub.repository.HomePickRepository;
+import muse.back.service.database.pub.repository.MuseumArtworkRepository;
+import muse.back.service.database.pub.repository.MuseumRepository;
+import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -29,7 +33,9 @@ public class HomeService {
     private final HomeHeroRepository homeHeroRepository;
     private final HomePickRepository homePickRepository;
     private final ArtworkRepository artworkRepository;
-    private final GalleryCategoryRepository galleryCategoryRepository;
+    private final MuseumRepository museumRepository;
+    private final MuseumArtworkRepository museumArtworkRepository;
+    private final ProfileArtistRepository profileArtistRepository;
     private final ContestRepository contestRepository;
 
     public HomeResponse getHome() {
@@ -55,18 +61,20 @@ public class HomeService {
                 .map(this::toHomeArtworkCard)
                 .toList();
 
-        Map<String, Integer> categoryItemCounts = resolveCategoryItemCountMap();
-        List<HomeResponse.CategoryCard> categories = galleryCategoryRepository
-                .findAllByOrderByCategoryKeyAsc()
+        List<Museum> featuredMuseumEntities = museumRepository.findByIsPublicTrueOrderByMuseumIdDesc()
                 .stream()
-                .map(category -> toHomeCategoryCard(
-                        category,
-                        categoryItemCounts.getOrDefault(category.getCategoryKey(), 0)
+                .filter(Museum::isFeatured)
+                .limit(8)
+                .toList();
+        Map<Long, String> artistNameMap = profileArtistRepository
+                .findAllById(featuredMuseumEntities.stream().map(Museum::getArtistId).toList())
+                .stream()
+                .collect(Collectors.toMap(ProfileArtist::getArtistId, ProfileArtist::getName));
+        List<HomeResponse.MuseumCard> featuredMuseums = featuredMuseumEntities.stream()
+                .map(museum -> toHomeMuseumCard(
+                        museum,
+                        artistNameMap.getOrDefault(museum.getArtistId(), "Unknown Artist")
                 ))
-                .sorted(Comparator
-                        .comparingInt(HomeResponse.CategoryCard::itemCount)
-                        .reversed()
-                        .thenComparing(HomeResponse.CategoryCard::title))
                 .toList();
 
         List<HomeResponse.ContestCard> contests = contestRepository
@@ -77,7 +85,7 @@ public class HomeService {
                 .map(this::toHomeContestCard)
                 .toList();
 
-        return new HomeResponse(hero, todaysPick, categories, contests);
+        return new HomeResponse(hero, todaysPick, featuredMuseums, contests);
     }
 
     private HomeResponse.Hero fallbackHero() {
@@ -101,25 +109,20 @@ public class HomeService {
         );
     }
 
-    private HomeResponse.CategoryCard toHomeCategoryCard(
-            GalleryCategory category,
-            int itemCount
-    ) {
-        return new HomeResponse.CategoryCard(
-                category.getCategoryKey(),
-                category.getTitle(),
-                category.getDescription(),
-                itemCount
+    private HomeResponse.MuseumCard toHomeMuseumCard(Museum museum, String ownerName) {
+        List<MuseumArtwork> visibleArtworks =
+                museumArtworkRepository.findByMuseumIdAndModerationStatusOrderByMuseumArtworkIdDesc(
+                        museum.getMuseumId(),
+                        "VISIBLE"
+                );
+        String coverImageUrl = visibleArtworks.isEmpty() ? null : visibleArtworks.get(0).getImageUrl();
+        return new HomeResponse.MuseumCard(
+                museum.getMuseumId(),
+                museum.getName(),
+                ownerName,
+                visibleArtworks.size(),
+                coverImageUrl
         );
-    }
-
-    private Map<String, Integer> resolveCategoryItemCountMap() {
-        return artworkRepository.findCategoryArtworkCounts()
-                .stream()
-                .collect(Collectors.toMap(
-                        ArtworkRepository.CategoryArtworkCount::getCategoryKey,
-                        count -> Math.toIntExact(count.getItemCount())
-                ));
     }
 
     private HomeResponse.ContestCard toHomeContestCard(Contest contest) {

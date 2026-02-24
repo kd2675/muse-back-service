@@ -1,19 +1,7 @@
--- Seed data for muse content (home/contest/gallery/artwork/profile)
+-- Seed data for muse content (home/contest/museum/artwork/profile)
 -- Generated: 2026-02-04
 
 use MUSE;
-
-INSERT INTO gallery_category (
-    category_key, title, description, item_count, create_date, update_date
-) VALUES
-    ('nature', 'Nature', '고요한 자연의 리듬', 312, NOW(), NOW()),
-    ('urban', 'Urban', '도시의 질감과 빛', 245, NOW(), NOW()),
-    ('people', 'People', '인물의 서사', 198, NOW(), NOW()),
-    ('abstract', 'Abstract', '형태의 실험', 154, NOW(), NOW()),
-    ('fineart', 'Fine Art', '작품성 중심', 221, NOW(), NOW()),
-    ('night', 'Night', '밤의 색감', 176, NOW(), NOW()),
-    ('macro', 'Macro', '미세한 디테일에 집중', 12, NOW(), NOW()),
-    ('landscape', 'Landscape', '광활한 풍경의 깊이', 18, NOW(), NOW());
 
 INSERT INTO artwork (
     artwork_id, title, artist, category_key, category_label, description, camera, lens,
@@ -108,13 +96,6 @@ INSERT INTO home_pick (
     (3, 3, NOW(), NOW()),
     (4, 4, NOW(), NOW());
 
-INSERT INTO gallery_highlight (
-    artwork_id, sort_order, create_date, update_date
-) VALUES
-    (201, 1, NOW(), NOW()),
-    (202, 2, NOW(), NOW()),
-    (203, 3, NOW(), NOW());
-
 INSERT INTO contest (
     contest_id, theme, description, period, entry_fee, prize_pool, days_left,
     submission_start_at, submission_end_at, voting_start_at, voting_end_at,
@@ -167,6 +148,22 @@ INSERT INTO profile_artist (
     (501, 3, 'Minji Han', '빛과 질감을 탐구하는 사진가', '#2B2A28', NOW(), NOW()),
     (502, 4, 'Jun Park', '도시 야경과 반사를 담는 포토그래퍼', '#233141', NOW(), NOW()),
     (503, 5, 'Sena Choi', '비 오는 거리의 순간을 기록합니다', '#2D3136', NOW(), NOW());
+
+INSERT INTO museum (
+    museum_id, artist_id, name, description, is_public, is_featured, create_date, update_date
+) VALUES
+    (1, 501, 'Light Archive', '빛과 질감 중심의 큐레이션 뮤지엄', 1, 1, NOW(), NOW()),
+    (2, 502, 'Urban Echo Chamber', '도시의 반사와 야경을 모은 전시', 1, 1, NOW(), NOW()),
+    (3, 503, 'Rain Memory Rooms', '비와 공기의 레이어를 기록한 작품집', 1, 0, NOW(), NOW());
+
+INSERT INTO museum_artwork (
+    museum_artwork_id, museum_id, artist_id, title, description, file_name, image_url, moderation_status, create_date, update_date
+) VALUES
+    (1, 1, 501, 'Stillness of Air', '차분한 빛과 질감의 순간', 'stillness-of-air.jpg', 'https://images.unsplash.com/photo-1493244040629-496f6d136cc3?auto=format&fit=crop&w=1400&q=80', 'VISIBLE', NOW(), NOW()),
+    (2, 1, 501, 'Fine Art Echo', '조형적 리듬을 담은 프레임', 'fineart-echo.jpg', 'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=1400&q=80', 'VISIBLE', NOW(), NOW()),
+    (3, 2, 502, 'City Pulse', '도시의 흐름과 대비', 'city-pulse.jpg', 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1400&q=80', 'VISIBLE', NOW(), NOW()),
+    (4, 2, 502, 'Neon Drift', '교차로의 네온 반사', 'neon-drift.jpg', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1200&q=80', 'VISIBLE', NOW(), NOW()),
+    (5, 3, 503, 'After Rain', '비가 지난 뒤 남은 색감', 'after-rain.jpg', 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1f?auto=format&fit=crop&w=1200&q=80', 'VISIBLE', NOW(), NOW());
 
 INSERT INTO contest_entry (
     entry_id, artist_id, contest_id, title, description, file_name, image_url, status, create_date, update_date

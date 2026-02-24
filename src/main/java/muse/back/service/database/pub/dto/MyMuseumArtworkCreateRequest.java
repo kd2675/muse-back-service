@@ -1,9 +1,9 @@
 package muse.back.service.database.pub.dto;
 
-public record AdminGalleryCategoryResponse(
-        String key,
+public record MyMuseumArtworkCreateRequest(
         String title,
         String description,
-        int itemCount
+        String fileName,
+        String imageUrl
 ) {
 }
