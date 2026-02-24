@@ -143,7 +143,6 @@ CREATE TABLE IF NOT EXISTS contest (
     entry_fee INT NOT NULL,
     prize_pool INT NOT NULL,
     days_left INT NOT NULL,
-    status VARCHAR(20) NOT NULL,
     submission_start_at DATETIME NULL,
     submission_end_at DATETIME NULL,
     voting_start_at DATETIME NULL,

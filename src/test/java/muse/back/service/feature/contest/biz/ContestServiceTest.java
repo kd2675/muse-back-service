@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -246,7 +247,7 @@ class ContestServiceTest {
                 "desc",
                 "sample.jpg",
                 "https://example.com/e.jpg",
-                "SUBMITTED"
+                "APPROVED"
         );
 
         when(profileArtistRepository.findByUserId(userId))
@@ -331,6 +332,30 @@ class ContestServiceTest {
         verify(contestEntryRepository, never()).findByEntryIdAndContestId(entryId, contestId);
     }
 
+    @Test
+    void finalizeContestResults_returnsEmptyWinners_whenNoEntriesToFinalize() {
+        Long contestId = 401L;
+        Contest contest = buildEndedContest(contestId);
+
+        when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
+        when(contestEntryRepository.existsByContestIdAndStatusIn(
+                contestId,
+                Set.of("APPROVED", "REJECTED")
+        )).thenReturn(false);
+        when(contestEntryRepository.findByContestIdAndStatusIn(
+                contestId,
+                Set.of("SUBMITTED", "REVIEWING", "APPROVED")
+        )).thenReturn(List.of());
+
+        var response = contestService.finalizeContestResults(contestId);
+
+        assertThat(response.contestId()).isEqualTo(contestId);
+        assertThat(response.phase()).isEqualTo("ENDED");
+        assertThat(response.winners()).isEmpty();
+        verify(contestRepository, never()).save(any());
+        verify(contestEntryRepository, never()).saveAll(any());
+    }
+
     private Contest buildSubmissionContest(Long contestId) {
         LocalDateTime now = LocalDateTime.now(SERVICE_ZONE);
         return new Contest(
@@ -341,7 +366,6 @@ class ContestServiceTest {
                 3000,
                 100000,
                 1,
-                "ACTIVE",
                 now.minusHours(1),
                 now.plusHours(1),
                 now.plusHours(2),
@@ -360,7 +384,6 @@ class ContestServiceTest {
                 3000,
                 100000,
                 1,
-                "ACTIVE",
                 now.minusDays(2),
                 now.minusDays(1),
                 now.minusHours(1),
@@ -379,7 +402,6 @@ class ContestServiceTest {
                 3000,
                 100000,
                 1,
-                "ACTIVE",
                 now.minusDays(2),
                 now.minusHours(1),
                 now.plusHours(1),
@@ -398,7 +420,6 @@ class ContestServiceTest {
                 3000,
                 100000,
                 1,
-                "UPCOMING",
                 now.plusHours(2),
                 now.plusHours(4),
                 now.plusHours(6),
@@ -417,7 +438,6 @@ class ContestServiceTest {
                 3000,
                 100000,
                 0,
-                "ENDED",
                 now.minusDays(5),
                 now.minusDays(4),
                 now.minusDays(3),

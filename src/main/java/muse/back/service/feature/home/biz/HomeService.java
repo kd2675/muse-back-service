@@ -14,6 +14,7 @@ import muse.back.service.database.pub.repository.HomeHeroRepository;
 import muse.back.service.database.pub.repository.HomePickRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ public class HomeService {
     private final ContestRepository contestRepository;
 
     public HomeResponse getHome() {
+        LocalDateTime currentTime = LocalDateTime.now();
         HomeResponse.Hero hero = homeHeroRepository.findTopByOrderByHomeHeroIdDesc()
                 .map(heroEntity -> new HomeResponse.Hero(
                         heroEntity.getBadge(),
@@ -68,8 +70,10 @@ public class HomeService {
                 .toList();
 
         List<HomeResponse.ContestCard> contests = contestRepository
-                .findByStatusOrderByDaysLeftAsc("ACTIVE")
+                .findAllByOrderByContestIdAsc()
                 .stream()
+                .filter(contest -> !"ENDED".equals(resolveContestPhase(contest, currentTime)))
+                .sorted(Comparator.comparingInt(Contest::getDaysLeft))
                 .map(this::toHomeContestCard)
                 .toList();
 
@@ -134,5 +138,27 @@ public class HomeService {
             return artwork.getCategoryLabel();
         }
         return artwork.getCategoryKey();
+    }
+
+    private String resolveContestPhase(Contest contest, LocalDateTime currentTime) {
+        if (contest.getSubmissionStartAt() == null
+                || contest.getSubmissionEndAt() == null
+                || contest.getVotingStartAt() == null
+                || contest.getVotingEndAt() == null) {
+            return "ENDED";
+        }
+        if (currentTime.isBefore(contest.getSubmissionStartAt())) {
+            return "UPCOMING";
+        }
+        if (!currentTime.isAfter(contest.getSubmissionEndAt())) {
+            return "SUBMISSION";
+        }
+        if (currentTime.isBefore(contest.getVotingStartAt())) {
+            return "REVIEW";
+        }
+        if (!currentTime.isAfter(contest.getVotingEndAt())) {
+            return "VOTING";
+        }
+        return "ENDED";
     }
 }

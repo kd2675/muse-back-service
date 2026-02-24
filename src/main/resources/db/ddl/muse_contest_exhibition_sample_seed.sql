@@ -4,7 +4,7 @@
 USE MUSE;
 
 INSERT INTO contest (
-    contest_id, theme, description, period, entry_fee, prize_pool, days_left, status,
+    contest_id, theme, description, period, entry_fee, prize_pool, days_left,
     submission_start_at, submission_end_at, voting_start_at, voting_end_at,
     participation_count, create_date, update_date
 ) VALUES (
@@ -15,7 +15,6 @@ INSERT INTO contest (
     3000,
     540000,
     300,
-    'ACTIVE',
     '2026-02-01 00:00:00',
     '2026-02-10 23:59:59',
     '2026-02-11 00:00:00',
@@ -30,7 +29,6 @@ ON DUPLICATE KEY UPDATE
     period = VALUES(period),
     entry_fee = VALUES(entry_fee),
     prize_pool = VALUES(prize_pool),
-    status = VALUES(status),
     submission_start_at = VALUES(submission_start_at),
     submission_end_at = VALUES(submission_end_at),
     voting_start_at = VALUES(voting_start_at),

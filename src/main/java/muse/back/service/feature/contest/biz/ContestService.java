@@ -55,6 +55,7 @@ public class ContestService {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String STATUS_SUBMITTED = "SUBMITTED";
     private static final Set<String> ENTRY_VISIBLE_STATUSES = Set.of("SUBMITTED", "REVIEWING", "APPROVED");
+    private static final Set<String> ENTRY_VISIBLE_STATUSES_VOTING = Set.of("APPROVED");
     private static final Set<String> ENTRY_VISIBLE_STATUSES_ENDED = Set.of("SUBMITTED", "REVIEWING", "APPROVED", "REJECTED");
     private static final String LEDGER_REASON_VOTE = "VOTE";
     private static final String VOTE_REF_PREFIX = "ENTRY:";
@@ -65,8 +66,6 @@ public class ContestService {
     private static final String PHASE_VOTING = "VOTING";
     private static final String PHASE_ENDED = "ENDED";
     private static final Set<String> FINALIZED_STATUSES = Set.of("APPROVED", "REJECTED");
-    private static final String DEFAULT_STATUS_ACTIVE = "ACTIVE";
-    private static final Set<String> LIST_VISIBLE_STATUSES = Set.of("ACTIVE", "UPCOMING", "ENDED");
     private static final Set<String> ADMIN_REVIEWABLE_STATUSES = Set.of("REVIEWING", "APPROVED", "REJECTED");
     private static final long MAX_FILE_SIZE_BYTES = 100L * 1024L * 1024L;
     private static final int MIN_IMAGE_RESOLUTION_PX = 3000;
@@ -85,7 +84,6 @@ public class ContestService {
         LocalDateTime currentTime = now();
         return contestRepository.findAllByOrderByContestIdAsc()
                 .stream()
-                .filter(contest -> LIST_VISIBLE_STATUSES.contains(contest.getStatus()))
                 .sorted(contestPhaseOrderComparator(currentTime))
                 .map(contest -> toContestSummary(contest, currentTime))
                 .toList();
@@ -115,7 +113,6 @@ public class ContestService {
                 request.entryFee(),
                 request.prizePool(),
                 computeDaysLeft(request.votingEndAt(), now),
-                normalizeContestStatus(request.status()),
                 request.submissionStartAt(),
                 request.submissionEndAt(),
                 request.votingStartAt(),
@@ -139,7 +136,6 @@ public class ContestService {
                 request.entryFee(),
                 request.prizePool(),
                 computeDaysLeft(request.votingEndAt(), now),
-                normalizeContestStatus(request.status()),
                 request.submissionStartAt(),
                 request.submissionEndAt(),
                 request.votingStartAt(),
@@ -168,7 +164,12 @@ public class ContestService {
         List<ContestEntry> entries = contestEntryRepository
                 .findByContestIdAndStatusIn(contestId, ENTRY_VISIBLE_STATUSES);
         if (entries.isEmpty()) {
-            throw new GeneralException(Code.CONFLICT, "No entries to finalize");
+            return new ContestFinalizeResponse(
+                    contestId,
+                    PHASE_ENDED,
+                    now(),
+                    List.of()
+            );
         }
 
         Map<String, Long> voteCounts = countVotesBySelectedEntry(contestId);
@@ -227,8 +228,6 @@ public class ContestService {
         }
 
         contestEntryRepository.saveAll(sorted);
-        contest.markEnded();
-        contestRepository.save(contest);
 
         return new ContestFinalizeResponse(
                 contestId,
@@ -255,7 +254,6 @@ public class ContestService {
                 contest.getEntryFee(),
                 contest.getPrizePool(),
                 computeDaysLeft(contest.getVotingEndAt(), currentTime),
-                contest.getStatus(),
                 phase,
                 contest.getSubmissionStartAt(),
                 contest.getSubmissionEndAt(),
@@ -595,7 +593,7 @@ public class ContestService {
     private ContestEntry findVisibleEntryForVote(Long contestId, String entryId) {
         ContestEntry entry = contestEntryRepository.findByEntryIdAndContestId(entryId, contestId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, String.format("Entry not found with id: '%s'", entryId)));
-        if (!ENTRY_VISIBLE_STATUSES.contains(entry.getStatus())) {
+        if (!ENTRY_VISIBLE_STATUSES_VOTING.contains(entry.getStatus())) {
             throw new GeneralException(Code.CONFLICT, "Entry is not available for voting");
         }
         return entry;
@@ -634,6 +632,9 @@ public class ContestService {
     }
 
     private Set<String> resolveVisibleStatusesForPublicPhase(String phase) {
+        if (PHASE_VOTING.equals(phase)) {
+            return ENTRY_VISIBLE_STATUSES_VOTING;
+        }
         if (PHASE_ENDED.equals(phase)) {
             return ENTRY_VISIBLE_STATUSES_ENDED;
         }
@@ -721,7 +722,6 @@ public class ContestService {
                 contest.getEntryFee(),
                 contest.getPrizePool(),
                 computeDaysLeft(contest.getVotingEndAt(), currentTime),
-                contest.getStatus(),
                 phase,
                 contest.getSubmissionStartAt(),
                 contest.getSubmissionEndAt(),
@@ -740,17 +740,6 @@ public class ContestService {
                 .toList();
         if (normalized.isEmpty()) {
             throw new GeneralException(Code.VALIDATION_ERROR, "At least one rule is required");
-        }
-        return normalized;
-    }
-
-    private String normalizeContestStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return DEFAULT_STATUS_ACTIVE;
-        }
-        String normalized = status.trim().toUpperCase();
-        if (!Set.of("UPCOMING", "ACTIVE", "ENDED").contains(normalized)) {
-            throw new GeneralException(Code.VALIDATION_ERROR, "Invalid status");
         }
         return normalized;
     }
@@ -823,7 +812,6 @@ public class ContestService {
                 contest.getEntryFee(),
                 contest.getPrizePool(),
                 computeDaysLeft(contest.getVotingEndAt(), currentTime),
-                contest.getStatus(),
                 phase,
                 contest.getSubmissionStartAt(),
                 contest.getSubmissionEndAt(),
@@ -944,7 +932,7 @@ public class ContestService {
         LocalDateTime votingEnd = contest.getVotingEndAt();
 
         if (submissionStart == null || submissionEnd == null || votingStart == null || votingEnd == null) {
-            return fallbackPhaseByStatus(contest.getStatus());
+            throw new GeneralException(Code.CONFLICT, "Contest schedule is not configured");
         }
         if (currentTime.isBefore(submissionStart)) {
             return PHASE_UPCOMING;
@@ -962,16 +950,6 @@ public class ContestService {
             return PHASE_ENDED;
         }
         return PHASE_UPCOMING;
-    }
-
-    private String fallbackPhaseByStatus(String status) {
-        if ("UPCOMING".equals(status)) {
-            return PHASE_UPCOMING;
-        }
-        if ("ENDED".equals(status)) {
-            return PHASE_ENDED;
-        }
-        return PHASE_SUBMISSION;
     }
 
     private LocalDateTime now() {

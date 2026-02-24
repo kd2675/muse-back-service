@@ -41,8 +41,9 @@ class HomeServiceTest {
         when(homeHeroRepository.findTopByOrderByHomeHeroIdDesc()).thenReturn(Optional.empty());
         when(homePickRepository.findAllByOrderBySortOrderAsc()).thenReturn(List.of());
         when(artworkRepository.findAllById(any())).thenReturn(List.of());
-        when(galleryCategoryRepository.findAllByOrderByItemCountDesc()).thenReturn(List.of());
-        when(contestRepository.findByStatusOrderByDaysLeftAsc("ACTIVE")).thenReturn(List.of());
+        when(artworkRepository.findCategoryArtworkCounts()).thenReturn(List.of());
+        when(galleryCategoryRepository.findAllByOrderByCategoryKeyAsc()).thenReturn(List.of());
+        when(contestRepository.findAllByOrderByContestIdAsc()).thenReturn(List.of());
 
         HomeResponse response = homeService.getHome();
 

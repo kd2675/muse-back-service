@@ -38,9 +38,6 @@ public class Contest extends CommonDateEntity {
     @Column(name = "days_left", nullable = false)
     private int daysLeft;
 
-    @Column(name = "status", length = 20, nullable = false)
-    private String status;
-
     @Column(name = "submission_start_at")
     private LocalDateTime submissionStartAt;
 
@@ -64,7 +61,6 @@ public class Contest extends CommonDateEntity {
             int entryFee,
             int prizePool,
             int daysLeft,
-            String status,
             LocalDateTime submissionStartAt,
             LocalDateTime submissionEndAt,
             LocalDateTime votingStartAt,
@@ -78,7 +74,6 @@ public class Contest extends CommonDateEntity {
         this.entryFee = entryFee;
         this.prizePool = prizePool;
         this.daysLeft = daysLeft;
-        this.status = status;
         this.submissionStartAt = submissionStartAt;
         this.submissionEndAt = submissionEndAt;
         this.votingStartAt = votingStartAt;
@@ -103,7 +98,6 @@ public class Contest extends CommonDateEntity {
             int entryFee,
             int prizePool,
             int daysLeft,
-            String status,
             LocalDateTime submissionStartAt,
             LocalDateTime submissionEndAt,
             LocalDateTime votingStartAt,
@@ -115,14 +109,9 @@ public class Contest extends CommonDateEntity {
         this.entryFee = entryFee;
         this.prizePool = prizePool;
         this.daysLeft = daysLeft;
-        this.status = status;
         this.submissionStartAt = submissionStartAt;
         this.submissionEndAt = submissionEndAt;
         this.votingStartAt = votingStartAt;
         this.votingEndAt = votingEndAt;
-    }
-
-    public void markEnded() {
-        this.status = "ENDED";
     }
 }

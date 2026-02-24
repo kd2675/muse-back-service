@@ -10,7 +10,5 @@ public interface ContestRepository extends JpaRepository<Contest, Long> {
 
     List<Contest> findAllByOrderByContestIdAsc();
 
-    List<Contest> findByStatusOrderByDaysLeftAsc(String status);
-
     Optional<Contest> findTopByOrderByContestIdDesc();
 }

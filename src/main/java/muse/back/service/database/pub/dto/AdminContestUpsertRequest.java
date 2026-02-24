@@ -12,7 +12,6 @@ public record AdminContestUpsertRequest(
         LocalDateTime submissionEndAt,
         LocalDateTime votingStartAt,
         LocalDateTime votingEndAt,
-        String status,
         List<String> rules
 ) {
 }
