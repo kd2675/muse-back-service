@@ -6,6 +6,7 @@ import muse.back.service.database.pub.dto.AdminContestUpsertRequest;
 import muse.back.service.database.pub.dto.ContestDetailResponse;
 import muse.back.service.database.pub.dto.ContestEntryCreditResponse;
 import muse.back.service.database.pub.dto.ContestFinalizeResponse;
+import muse.back.service.database.pub.dto.ContestPublicEntryPageResponse;
 import muse.back.service.database.pub.dto.ContestPublicEntryResponse;
 import muse.back.service.database.pub.dto.ContestRankingResponse;
 import muse.back.service.database.pub.dto.ContestEntryResponse;
@@ -29,6 +30,9 @@ import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import muse.back.service.database.pub.repository.ProfileAwardRepository;
 import muse.back.service.database.pub.repository.ProfileStatRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import web.common.core.response.base.exception.GeneralException;
@@ -70,6 +74,9 @@ public class ContestService {
     private static final long MAX_FILE_SIZE_BYTES = 100L * 1024L * 1024L;
     private static final int MIN_IMAGE_RESOLUTION_PX = 3000;
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png");
+    private static final int MAX_PUBLIC_ENTRY_PAGE_SIZE = 50;
+    private static final String ENTRY_MODE_RANDOM = "RANDOM";
+    private static final String ENTRY_MODE_SUBMITTED_ASC = "SUBMITTED_ASC";
 
     private final ContestRepository contestRepository;
     private final ContestRuleRepository contestRuleRepository;
@@ -271,6 +278,65 @@ public class ContestService {
         List<ContestEntry> entries = contestEntryRepository
                 .findByContestIdAndStatusInOrderByCreateDateDesc(contestId, visibleStatuses);
         return toPublicEntryResponses(entries);
+    }
+
+    public ContestPublicEntryPageResponse getContestEntriesPage(
+            Long contestId,
+            String mode,
+            Integer page,
+            Integer size
+    ) {
+        Contest contest = getContestOrThrow(contestId);
+        String phase = resolveContestPhase(contest, now());
+        Set<String> visibleStatuses = resolveVisibleStatusesForPublicPhase(phase);
+        String normalizedMode = normalizeEntryMode(mode);
+        int resolvedPage = normalizePage(page);
+        int resolvedSize = normalizePageSize(size);
+
+        if (ENTRY_MODE_SUBMITTED_ASC.equals(normalizedMode)) {
+            PageRequest pageRequest = PageRequest.of(
+                    resolvedPage - 1,
+                    resolvedSize,
+                    Sort.by(Sort.Direction.ASC, "createDate").and(Sort.by(Sort.Direction.ASC, "entryId"))
+            );
+            Page<ContestEntry> entries = contestEntryRepository
+                    .findByContestIdAndStatusIn(contestId, visibleStatuses, pageRequest);
+            int totalPages = Math.max(entries.getTotalPages(), 1);
+            return new ContestPublicEntryPageResponse(
+                    toPublicEntryResponses(entries.getContent()),
+                    resolvedPage,
+                    resolvedSize,
+                    entries.getTotalElements(),
+                    totalPages,
+                    entries.hasNext(),
+                    normalizedMode
+            );
+        }
+
+        long totalElements = contestEntryRepository.countByContestIdAndStatusIn(contestId, visibleStatuses);
+        if (totalElements == 0) {
+            return new ContestPublicEntryPageResponse(
+                    List.of(),
+                    1,
+                    resolvedSize,
+                    0,
+                    1,
+                    false,
+                    normalizedMode
+            );
+        }
+
+        List<ContestEntry> randomEntries = contestEntryRepository
+                .findRandomByContestIdAndStatusIn(contestId, visibleStatuses, resolvedSize);
+        return new ContestPublicEntryPageResponse(
+                toPublicEntryResponses(randomEntries),
+                1,
+                resolvedSize,
+                totalElements,
+                1,
+                false,
+                normalizedMode
+        );
     }
 
     @Transactional
@@ -700,6 +766,31 @@ public class ContestService {
             throw new GeneralException(Code.VALIDATION_ERROR, "Invalid entry status");
         }
         return normalized;
+    }
+
+    private String normalizeEntryMode(String mode) {
+        if (mode == null || mode.isBlank()) {
+            return ENTRY_MODE_RANDOM;
+        }
+        String normalized = mode.trim().toUpperCase();
+        if (ENTRY_MODE_RANDOM.equals(normalized) || ENTRY_MODE_SUBMITTED_ASC.equals(normalized)) {
+            return normalized;
+        }
+        throw new GeneralException(Code.VALIDATION_ERROR, "Invalid entries mode");
+    }
+
+    private int normalizePage(Integer page) {
+        if (page == null || page < 1) {
+            return 1;
+        }
+        return page;
+    }
+
+    private int normalizePageSize(Integer size) {
+        if (size == null || size < 1) {
+            return 10;
+        }
+        return Math.min(size, MAX_PUBLIC_ENTRY_PAGE_SIZE);
     }
 
     private String resolveContestTheme(Long contestId) {

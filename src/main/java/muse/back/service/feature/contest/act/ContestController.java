@@ -7,6 +7,7 @@ import muse.back.service.feature.contest.biz.ContestService;
 import muse.back.service.database.pub.dto.ContestDetailResponse;
 import muse.back.service.database.pub.dto.ContestEntryCreditResponse;
 import muse.back.service.database.pub.dto.ContestEntryRequest;
+import muse.back.service.database.pub.dto.ContestPublicEntryPageResponse;
 import muse.back.service.database.pub.dto.ContestPublicEntryResponse;
 import muse.back.service.database.pub.dto.ContestRankingResponse;
 import muse.back.service.database.pub.dto.ContestEntryResponse;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import web.common.core.response.base.dto.ResponseDataDTO;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import web.common.core.response.base.exception.GeneralException;
 import web.common.core.response.base.vo.Code;
 
@@ -48,6 +50,20 @@ public class ContestController {
     public ResponseDataDTO<List<ContestPublicEntryResponse>> getContestEntries(@PathVariable Long id) {
         log.info("Get contest entries: id={}", id);
         return ResponseDataDTO.of(contestService.getContestEntries(id), "콘테스트 출품 목록 조회 성공");
+    }
+
+    @GetMapping("/{id}/entries/page")
+    public ResponseDataDTO<ContestPublicEntryPageResponse> getContestEntriesPage(
+            @PathVariable Long id,
+            @RequestParam(name = "mode", required = false) String mode,
+            @RequestParam(name = "page", required = false) Integer page,
+            @RequestParam(name = "size", required = false) Integer size
+    ) {
+        log.info("Get contest entries page: id={}, mode={}, page={}, size={}", id, mode, page, size);
+        return ResponseDataDTO.of(
+                contestService.getContestEntriesPage(id, mode, page, size),
+                "콘테스트 출품 페이지 조회 성공"
+        );
     }
 
     @GetMapping("/{id}/ranking")
