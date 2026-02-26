@@ -169,7 +169,7 @@ INSERT INTO contest_entry (
     entry_id, artist_id, contest_id, title, description, file_name, image_url, status, create_date, update_date
 ) VALUES
     ('EN-105-001', 501, 105, 'Neon Drift', '새벽 교차로의 네온 반사', 'neon-drift.jpg', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1200&q=80', 'SUBMITTED', NOW(), NOW()),
-    ('EN-105-002', 502, 105, 'Silent Crosswalk', '인파가 빠져나간 도심 횡단보도', 'silent-crosswalk.jpg', 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80', 'REVIEWING', NOW(), NOW()),
+    ('EN-105-002', 502, 105, 'Silent Crosswalk', '인파가 빠져나간 도심 횡단보도', 'silent-crosswalk.jpg', 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80', 'SUBMITTED', NOW(), NOW()),
     ('EN-105-003', 503, 105, 'After Rain', '비가 그친 직후의 차가운 노면 빛', 'after-rain.jpg', 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1f?auto=format&fit=crop&w=1200&q=80', 'APPROVED', NOW(), NOW());
 
 INSERT INTO contest_entry_ledger (

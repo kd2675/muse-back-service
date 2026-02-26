@@ -290,9 +290,9 @@ class ContestServiceTest {
         when(contestEntryRepository.findByEntryIdAndContestId(entryId, contestId))
                 .thenReturn(Optional.of(entry));
 
-        var response = contestService.updateAdminEntryStatus(contestId, entryId, "REVIEWING");
+        var response = contestService.updateAdminEntryStatus(contestId, entryId, "APPROVED");
 
-        assertThat(response.status()).isEqualTo("REVIEWING");
+        assertThat(response.status()).isEqualTo("APPROVED");
         verify(contestEntryRepository).save(entry);
     }
 
@@ -344,7 +344,7 @@ class ContestServiceTest {
         )).thenReturn(false);
         when(contestEntryRepository.findByContestIdAndStatusIn(
                 contestId,
-                Set.of("SUBMITTED", "REVIEWING", "APPROVED")
+                Set.of("SUBMITTED", "APPROVED")
         )).thenReturn(List.of());
 
         var response = contestService.finalizeContestResults(contestId);

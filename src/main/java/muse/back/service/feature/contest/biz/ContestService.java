@@ -11,6 +11,7 @@ import muse.back.service.database.pub.dto.ContestPublicEntryResponse;
 import muse.back.service.database.pub.dto.ContestRankingResponse;
 import muse.back.service.database.pub.dto.ContestEntryResponse;
 import muse.back.service.database.pub.dto.ContestEntrySummaryResponse;
+import muse.back.service.database.pub.dto.ContestEntrySummaryPageResponse;
 import muse.back.service.database.pub.dto.ContestSummaryResponse;
 import muse.back.service.database.pub.dto.ContestVoteResponse;
 import muse.back.service.database.pub.entity.ContestEntry;
@@ -58,9 +59,11 @@ public class ContestService {
     private static final DateTimeFormatter SUBMITTED_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String STATUS_SUBMITTED = "SUBMITTED";
-    private static final Set<String> ENTRY_VISIBLE_STATUSES = Set.of("SUBMITTED", "REVIEWING", "APPROVED");
-    private static final Set<String> ENTRY_VISIBLE_STATUSES_VOTING = Set.of("APPROVED");
-    private static final Set<String> ENTRY_VISIBLE_STATUSES_ENDED = Set.of("SUBMITTED", "REVIEWING", "APPROVED", "REJECTED");
+    private static final String STATUS_APPROVED = "APPROVED";
+    private static final String STATUS_REJECTED = "REJECTED";
+    private static final Set<String> ENTRY_VISIBLE_STATUSES = Set.of(STATUS_SUBMITTED, STATUS_APPROVED);
+    private static final Set<String> ENTRY_VISIBLE_STATUSES_VOTING = Set.of(STATUS_APPROVED);
+    private static final Set<String> ENTRY_VISIBLE_STATUSES_ENDED = Set.of(STATUS_SUBMITTED, STATUS_APPROVED, STATUS_REJECTED);
     private static final String LEDGER_REASON_VOTE = "VOTE";
     private static final String VOTE_REF_PREFIX = "ENTRY:";
     private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
@@ -69,8 +72,8 @@ public class ContestService {
     private static final String PHASE_REVIEW = "REVIEW";
     private static final String PHASE_VOTING = "VOTING";
     private static final String PHASE_ENDED = "ENDED";
-    private static final Set<String> FINALIZED_STATUSES = Set.of("APPROVED", "REJECTED");
-    private static final Set<String> ADMIN_REVIEWABLE_STATUSES = Set.of("REVIEWING", "APPROVED", "REJECTED");
+    private static final Set<String> FINALIZED_STATUSES = Set.of(STATUS_APPROVED, STATUS_REJECTED);
+    private static final Set<String> ADMIN_REVIEWABLE_STATUSES = Set.of(STATUS_APPROVED, STATUS_REJECTED);
     private static final long MAX_FILE_SIZE_BYTES = 100L * 1024L * 1024L;
     private static final int MIN_IMAGE_RESOLUTION_PX = 3000;
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png");
@@ -201,7 +204,7 @@ public class ContestService {
             if (index < winnerCount) {
                 int rank = index + 1;
                 int prize = prizes.get(index);
-                entry.updateStatus("APPROVED");
+                entry.updateStatus(STATUS_APPROVED);
                 profileAwardRepository.save(new ProfileAward(
                         nextAwardId++,
                         entry.getArtistId(),
@@ -230,7 +233,7 @@ public class ContestService {
                         prize
                 ));
             } else {
-                entry.updateStatus("REJECTED");
+                entry.updateStatus(STATUS_REJECTED);
             }
         }
 
@@ -575,13 +578,50 @@ public class ContestService {
                 .toList();
     }
 
+    public ContestEntrySummaryPageResponse getMyEntriesPage(Long userId, Integer page, Integer size) {
+        Long artistId = resolveArtistId(userId);
+        int resolvedPage = normalizePage(page);
+        int resolvedSize = normalizePageSize(size);
+        long totalElements = contestEntryRepository.countByArtistId(artistId);
+
+        if (totalElements == 0) {
+            return new ContestEntrySummaryPageResponse(
+                    List.of(),
+                    1,
+                    resolvedSize,
+                    0,
+                    1,
+                    false
+            );
+        }
+
+        int totalPages = Math.max((int) Math.ceil((double) totalElements / resolvedSize), 1);
+        int normalizedPage = Math.min(resolvedPage, totalPages);
+        PageRequest pageRequest = PageRequest.of(
+                normalizedPage - 1,
+                resolvedSize,
+                Sort.by(Sort.Direction.DESC, "createDate")
+                        .and(Sort.by(Sort.Direction.DESC, "entryId"))
+        );
+        Page<ContestEntry> pagedEntries = contestEntryRepository.findByArtistId(artistId, pageRequest);
+
+        return new ContestEntrySummaryPageResponse(
+                pagedEntries.getContent().stream().map(this::toEntrySummary).toList(),
+                normalizedPage,
+                resolvedSize,
+                totalElements,
+                totalPages,
+                normalizedPage < totalPages
+        );
+    }
+
     @Transactional
     public void deleteEntry(String entryId, Long userId) {
         Long artistId = resolveArtistId(userId);
         ContestEntry entry = contestEntryRepository.findByEntryIdAndArtistId(entryId, artistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, String.format("Entry not found with id: '%s'", entryId)));
 
-        // 이미 심사 중/완료된 출품은 삭제를 제한
+        // 승인/반려된 출품은 삭제를 제한
         if (!STATUS_SUBMITTED.equals(entry.getStatus())) {
             throw new GeneralException(Code.CONFLICT, "Only submitted entries can be deleted");
         }

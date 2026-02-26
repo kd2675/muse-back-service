@@ -14,6 +14,7 @@ import java.util.Optional;
 public interface ContestEntryRepository extends JpaRepository<ContestEntry, String> {
 
     List<ContestEntry> findByArtistIdOrderByCreateDateDesc(Long artistId);
+    Page<ContestEntry> findByArtistId(Long artistId, Pageable pageable);
 
     List<ContestEntry> findByContestIdOrderByCreateDateDesc(Long contestId);
 
@@ -40,6 +41,7 @@ public interface ContestEntryRepository extends JpaRepository<ContestEntry, Stri
     );
 
     long countByContestId(Long contestId);
+    long countByArtistId(Long artistId);
 
     long countByContestIdAndStatusIn(Long contestId, Collection<String> statuses);
 
