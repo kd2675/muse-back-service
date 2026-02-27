@@ -30,6 +30,7 @@ import muse.back.service.database.pub.repository.ContestRuleRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import muse.back.service.database.pub.repository.ProfileAwardRepository;
 import muse.back.service.database.pub.repository.ProfileStatRepository;
+import muse.back.service.common.util.ImageUrlPathNormalizer;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -364,6 +365,7 @@ public class ContestService {
             throw new GeneralException(Code.VALIDATION_ERROR, "File name is required");
         }
         validateUploadedFile(fileName, fileSizeBytes, imageWidthPx, imageHeightPx);
+        String normalizedImageUrl = ImageUrlPathNormalizer.toStoragePath(imageUrl);
         String entryId = generateEntryId(contestId);
         consumeEntryCredit(contestId, artistId);
 
@@ -374,7 +376,7 @@ public class ContestService {
                 title,
                 description,
                 fileName,
-                imageUrl,
+                normalizedImageUrl,
                 STATUS_SUBMITTED
         );
         contest.increaseParticipationCount();
@@ -397,7 +399,7 @@ public class ContestService {
                 title,
                 description,
                 fileName,
-                imageUrl,
+                normalizedImageUrl,
                 STATUS_SUBMITTED
         );
     }

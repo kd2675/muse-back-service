@@ -60,9 +60,9 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO contest_entry (
     entry_id, artist_id, contest_id, title, description, file_name, image_url, status, create_date, update_date
 ) VALUES
-    ('EN-105-001', 501, 105, 'Neon Drift', '새벽 교차로의 네온 반사', 'neon-drift.jpg', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1200&q=80', 'SUBMITTED', NOW(), NOW()),
-    ('EN-105-002', 502, 105, 'Silent Crosswalk', '인파가 빠져나간 도심 횡단보도', 'silent-crosswalk.jpg', 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80', 'SUBMITTED', NOW(), NOW()),
-    ('EN-105-003', 503, 105, 'After Rain', '비가 그친 직후의 차가운 노면 빛', 'after-rain.jpg', 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1f?auto=format&fit=crop&w=1200&q=80', 'APPROVED', NOW(), NOW())
+    ('EN-105-001', 501, 105, 'Neon Drift', '새벽 교차로의 네온 반사', 'neon-drift.jpg', '/images/2026/02/24/08a13306-1310-4ecf-af20-e4a4c0693a9b.jpg', 'SUBMITTED', NOW(), NOW()),
+    ('EN-105-002', 502, 105, 'Silent Crosswalk', '인파가 빠져나간 도심 횡단보도', 'silent-crosswalk.jpg', '/images/2026/02/24/33fa72ae-a24b-4e79-9f68-61277654fd72.jpg', 'SUBMITTED', NOW(), NOW()),
+    ('EN-105-003', 503, 105, 'After Rain', '비가 그친 직후의 차가운 노면 빛', 'after-rain.jpg', '/images/2026/02/24/6d813892-685c-451d-868a-bf27a2462358.jpg', 'APPROVED', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     title = VALUES(title),
     description = VALUES(description),

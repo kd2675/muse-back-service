@@ -63,19 +63,19 @@ INSERT INTO artwork (
 INSERT INTO artwork_asset (
     artwork_id, file_name, image_url, create_date, update_date
 ) VALUES
-    (1, 'glass-river.jpg', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (2, 'echoes-of-fog.jpg', 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1f?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (3, 'velvet-night.jpg', 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (4, 'bloomline.jpg', 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (201, 'stillness-of-air.jpg', 'https://images.unsplash.com/photo-1493244040629-496f6d136cc3?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (202, 'golden-horizon.jpg', 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (203, 'city-pulse.jpg', 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (301, 'nature-echo.jpg', 'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (311, 'urban-echo.jpg', 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (321, 'people-echo.jpg', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (331, 'abstract-echo.jpg', 'https://images.unsplash.com/photo-1494256997604-768d1f608cac?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (341, 'fineart-echo.jpg', 'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=1400&q=80', NOW(), NOW()),
-    (351, 'night-echo.jpg', 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1400&q=80', NOW(), NOW());
+    (1, 'glass-river.jpg', '/images/2026/02/24/08a13306-1310-4ecf-af20-e4a4c0693a9b.jpg', NOW(), NOW()),
+    (2, 'echoes-of-fog.jpg', '/images/2026/02/24/33fa72ae-a24b-4e79-9f68-61277654fd72.jpg', NOW(), NOW()),
+    (3, 'velvet-night.jpg', '/images/2026/02/24/ba50be35-f4ae-4d2d-be82-9e2ab535fca2.jpg', NOW(), NOW()),
+    (4, 'bloomline.jpg', '/images/2026/02/24/6d813892-685c-451d-868a-bf27a2462358.jpg', NOW(), NOW()),
+    (201, 'stillness-of-air.jpg', '/images/2026/02/24/a9874d99-5567-42be-8966-4c3b7e00a288.jpg', NOW(), NOW()),
+    (202, 'golden-horizon.jpg', '/images/2026/02/24/1a5ce476-7412-4f00-bef3-7395287b6d59.jpg', NOW(), NOW()),
+    (203, 'city-pulse.jpg', '/images/2026/02/20/b06917fd-13b4-4c3d-8a17-0f58736b8051.jpg', NOW(), NOW()),
+    (301, 'nature-echo.jpg', '/images/2026/02/20/0b28edd7-2197-4c4b-b978-4fe49b6a1ed7.jpg', NOW(), NOW()),
+    (311, 'urban-echo.jpg', '/images/2026/02/24/08a13306-1310-4ecf-af20-e4a4c0693a9b.jpg', NOW(), NOW()),
+    (321, 'people-echo.jpg', '/images/2026/02/24/33fa72ae-a24b-4e79-9f68-61277654fd72.jpg', NOW(), NOW()),
+    (331, 'abstract-echo.jpg', '/images/2026/02/24/ba50be35-f4ae-4d2d-be82-9e2ab535fca2.jpg', NOW(), NOW()),
+    (341, 'fineart-echo.jpg', '/images/2026/02/24/6d813892-685c-451d-868a-bf27a2462358.jpg', NOW(), NOW()),
+    (351, 'night-echo.jpg', '/images/2026/02/24/a9874d99-5567-42be-8966-4c3b7e00a288.jpg', NOW(), NOW());
 
 INSERT INTO home_hero (
     badge, headline, subheadline, description, create_date, update_date
@@ -159,18 +159,18 @@ INSERT INTO museum (
 INSERT INTO museum_artwork (
     museum_artwork_id, museum_id, artist_id, title, description, file_name, image_url, moderation_status, create_date, update_date
 ) VALUES
-    (1, 1, 501, 'Stillness of Air', '차분한 빛과 질감의 순간', 'stillness-of-air.jpg', 'https://images.unsplash.com/photo-1493244040629-496f6d136cc3?auto=format&fit=crop&w=1400&q=80', 'VISIBLE', NOW(), NOW()),
-    (2, 1, 501, 'Fine Art Echo', '조형적 리듬을 담은 프레임', 'fineart-echo.jpg', 'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?auto=format&fit=crop&w=1400&q=80', 'VISIBLE', NOW(), NOW()),
-    (3, 2, 502, 'City Pulse', '도시의 흐름과 대비', 'city-pulse.jpg', 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1400&q=80', 'VISIBLE', NOW(), NOW()),
-    (4, 2, 502, 'Neon Drift', '교차로의 네온 반사', 'neon-drift.jpg', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1200&q=80', 'VISIBLE', NOW(), NOW()),
-    (5, 3, 503, 'After Rain', '비가 지난 뒤 남은 색감', 'after-rain.jpg', 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1f?auto=format&fit=crop&w=1200&q=80', 'VISIBLE', NOW(), NOW());
+    (1, 1, 501, 'Stillness of Air', '차분한 빛과 질감의 순간', 'stillness-of-air.jpg', '/images/2026/02/24/a9874d99-5567-42be-8966-4c3b7e00a288.jpg', 'VISIBLE', NOW(), NOW()),
+    (2, 1, 501, 'Fine Art Echo', '조형적 리듬을 담은 프레임', 'fineart-echo.jpg', '/images/2026/02/24/6d813892-685c-451d-868a-bf27a2462358.jpg', 'VISIBLE', NOW(), NOW()),
+    (3, 2, 502, 'City Pulse', '도시의 흐름과 대비', 'city-pulse.jpg', '/images/2026/02/20/b06917fd-13b4-4c3d-8a17-0f58736b8051.jpg', 'VISIBLE', NOW(), NOW()),
+    (4, 2, 502, 'Neon Drift', '교차로의 네온 반사', 'neon-drift.jpg', '/images/2026/02/24/08a13306-1310-4ecf-af20-e4a4c0693a9b.jpg', 'VISIBLE', NOW(), NOW()),
+    (5, 3, 503, 'After Rain', '비가 지난 뒤 남은 색감', 'after-rain.jpg', '/images/2026/02/24/6d813892-685c-451d-868a-bf27a2462358.jpg', 'VISIBLE', NOW(), NOW());
 
 INSERT INTO contest_entry (
     entry_id, artist_id, contest_id, title, description, file_name, image_url, status, create_date, update_date
 ) VALUES
-    ('EN-105-001', 501, 105, 'Neon Drift', '새벽 교차로의 네온 반사', 'neon-drift.jpg', 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1200&q=80', 'SUBMITTED', NOW(), NOW()),
-    ('EN-105-002', 502, 105, 'Silent Crosswalk', '인파가 빠져나간 도심 횡단보도', 'silent-crosswalk.jpg', 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80', 'SUBMITTED', NOW(), NOW()),
-    ('EN-105-003', 503, 105, 'After Rain', '비가 그친 직후의 차가운 노면 빛', 'after-rain.jpg', 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1f?auto=format&fit=crop&w=1200&q=80', 'APPROVED', NOW(), NOW());
+    ('EN-105-001', 501, 105, 'Neon Drift', '새벽 교차로의 네온 반사', 'neon-drift.jpg', '/images/2026/02/24/08a13306-1310-4ecf-af20-e4a4c0693a9b.jpg', 'SUBMITTED', NOW(), NOW()),
+    ('EN-105-002', 502, 105, 'Silent Crosswalk', '인파가 빠져나간 도심 횡단보도', 'silent-crosswalk.jpg', '/images/2026/02/24/33fa72ae-a24b-4e79-9f68-61277654fd72.jpg', 'SUBMITTED', NOW(), NOW()),
+    ('EN-105-003', 503, 105, 'After Rain', '비가 그친 직후의 차가운 노면 빛', 'after-rain.jpg', '/images/2026/02/24/6d813892-685c-451d-868a-bf27a2462358.jpg', 'APPROVED', NOW(), NOW());
 
 INSERT INTO contest_entry_ledger (
     artist_id, contest_id, delta, reason, ref_id, create_date, update_date

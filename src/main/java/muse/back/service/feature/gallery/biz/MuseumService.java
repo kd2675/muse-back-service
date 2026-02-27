@@ -19,6 +19,7 @@ import muse.back.service.database.pub.entity.ProfileArtist;
 import muse.back.service.database.pub.repository.MuseumArtworkRepository;
 import muse.back.service.database.pub.repository.MuseumRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
+import muse.back.service.common.util.ImageUrlPathNormalizer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import web.common.core.response.base.exception.GeneralException;
@@ -174,6 +175,7 @@ public class MuseumService {
         Long artistId = resolveArtistId(userId);
         requireMuseumOwner(museumId, artistId);
         validateMuseumArtworkCreateRequest(request);
+        String normalizedImageUrl = ImageUrlPathNormalizer.toStoragePath(request.imageUrl());
 
         MuseumArtwork artwork = museumArtworkRepository.save(new MuseumArtwork(
                 museumId,
@@ -181,7 +183,7 @@ public class MuseumService {
                 request.title().trim(),
                 trimToNull(request.description()),
                 request.fileName().trim(),
-                request.imageUrl().trim(),
+                normalizedImageUrl,
                 MODERATION_REVIEWING
         ));
         return toMyMuseumArtworkResponse(artwork);
