@@ -79,7 +79,6 @@ public class ContestService {
     private static final int MIN_IMAGE_RESOLUTION_PX = 3000;
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png");
     private static final int MAX_PUBLIC_ENTRY_PAGE_SIZE = 50;
-    private static final String ENTRY_MODE_RANDOM = "RANDOM";
     private static final String ENTRY_MODE_SUBMITTED_ASC = "SUBMITTED_ASC";
 
     private final ContestRepository contestRepository;
@@ -297,48 +296,21 @@ public class ContestService {
         int resolvedPage = normalizePage(page);
         int resolvedSize = normalizePageSize(size);
 
-        if (ENTRY_MODE_SUBMITTED_ASC.equals(normalizedMode)) {
-            PageRequest pageRequest = PageRequest.of(
-                    resolvedPage - 1,
-                    resolvedSize,
-                    Sort.by(Sort.Direction.ASC, "createDate").and(Sort.by(Sort.Direction.ASC, "entryId"))
-            );
-            Page<ContestEntry> entries = contestEntryRepository
-                    .findByContestIdAndStatusIn(contestId, visibleStatuses, pageRequest);
-            int totalPages = Math.max(entries.getTotalPages(), 1);
-            return new ContestPublicEntryPageResponse(
-                    toPublicEntryResponses(entries.getContent()),
-                    resolvedPage,
-                    resolvedSize,
-                    entries.getTotalElements(),
-                    totalPages,
-                    entries.hasNext(),
-                    normalizedMode
-            );
-        }
-
-        long totalElements = contestEntryRepository.countByContestIdAndStatusIn(contestId, visibleStatuses);
-        if (totalElements == 0) {
-            return new ContestPublicEntryPageResponse(
-                    List.of(),
-                    1,
-                    resolvedSize,
-                    0,
-                    1,
-                    false,
-                    normalizedMode
-            );
-        }
-
-        List<ContestEntry> randomEntries = contestEntryRepository
-                .findRandomByContestIdAndStatusIn(contestId, visibleStatuses, resolvedSize);
-        return new ContestPublicEntryPageResponse(
-                toPublicEntryResponses(randomEntries),
-                1,
+        PageRequest pageRequest = PageRequest.of(
+                resolvedPage - 1,
                 resolvedSize,
-                totalElements,
-                1,
-                false,
+                Sort.by(Sort.Direction.ASC, "createDate").and(Sort.by(Sort.Direction.ASC, "entryId"))
+        );
+        Page<ContestEntry> entries = contestEntryRepository
+                .findByContestIdAndStatusIn(contestId, visibleStatuses, pageRequest);
+        int totalPages = Math.max(entries.getTotalPages(), 1);
+        return new ContestPublicEntryPageResponse(
+                toPublicEntryResponses(entries.getContent()),
+                resolvedPage,
+                resolvedSize,
+                entries.getTotalElements(),
+                totalPages,
+                entries.hasNext(),
                 normalizedMode
         );
     }
@@ -812,10 +784,10 @@ public class ContestService {
 
     private String normalizeEntryMode(String mode) {
         if (mode == null || mode.isBlank()) {
-            return ENTRY_MODE_RANDOM;
+            return ENTRY_MODE_SUBMITTED_ASC;
         }
         String normalized = mode.trim().toUpperCase();
-        if (ENTRY_MODE_RANDOM.equals(normalized) || ENTRY_MODE_SUBMITTED_ASC.equals(normalized)) {
+        if (ENTRY_MODE_SUBMITTED_ASC.equals(normalized)) {
             return normalized;
         }
         throw new GeneralException(Code.VALIDATION_ERROR, "Invalid entries mode");
