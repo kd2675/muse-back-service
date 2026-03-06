@@ -34,16 +34,17 @@ class ProfileServiceTest {
 
     @Test
     void getProfileSummary_returnsFallbackProfile_whenArtistAndStatMissing() {
-        Long userId = 42L;
+        String userKey = "usr-test-42";
+        Long fallbackArtistId = 0L;
 
-        when(profileArtistRepository.findByUserId(userId)).thenReturn(Optional.empty());
-        when(profileStatRepository.findByArtistId(userId)).thenReturn(Optional.empty());
-        when(profilePortfolioRepository.findByArtistIdOrderByPortfolioIdAsc(userId)).thenReturn(List.of());
-        when(profileAwardRepository.findByArtistIdOrderByAwardIdAsc(userId)).thenReturn(List.of());
+        when(profileArtistRepository.findByUserKey(userKey)).thenReturn(Optional.empty());
+        when(profileStatRepository.findByArtistId(fallbackArtistId)).thenReturn(Optional.empty());
+        when(profilePortfolioRepository.findByArtistIdOrderByPortfolioIdAsc(fallbackArtistId)).thenReturn(List.of());
+        when(profileAwardRepository.findByArtistIdOrderByAwardIdAsc(fallbackArtistId)).thenReturn(List.of());
 
-        ProfileSummaryResponse response = profileService.getProfileSummary(userId);
+        ProfileSummaryResponse response = profileService.getProfileSummary(userKey);
 
-        assertThat(response.artist().name()).isEqualTo("Artist 42");
+        assertThat(response.artist().name()).isEqualTo("Artist usr-test-42");
         assertThat(response.artist().tagline()).isEqualTo("프로필 초기화 전");
         assertThat(response.stats().totalWorks()).isEqualTo(0);
         assertThat(response.stats().totalAwards()).isEqualTo(0);

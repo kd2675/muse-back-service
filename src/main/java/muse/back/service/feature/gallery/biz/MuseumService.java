@@ -111,8 +111,8 @@ public class MuseumService {
         );
     }
 
-    public List<MyMuseumResponse> getMyMuseums(Long userId) {
-        Long artistId = resolveArtistId(userId);
+    public List<MyMuseumResponse> getMyMuseums(String userKey) {
+        Long artistId = resolveArtistId(userKey);
         return museumRepository.findByArtistIdOrderByMuseumIdDesc(artistId)
                 .stream()
                 .map(this::toMyMuseumResponse)
@@ -120,9 +120,9 @@ public class MuseumService {
     }
 
     @Transactional
-    public MyMuseumResponse createMyMuseum(Long userId, MyMuseumCreateRequest request) {
+    public MyMuseumResponse createMyMuseum(String userKey, MyMuseumCreateRequest request) {
         validateMuseumUpsertRequest(request == null ? null : request.name());
-        Long artistId = resolveArtistId(userId);
+        Long artistId = resolveArtistId(userKey);
         Museum museum = museumRepository.save(new Museum(
                 artistId,
                 request.name().trim(),
@@ -134,9 +134,9 @@ public class MuseumService {
     }
 
     @Transactional
-    public MyMuseumResponse updateMyMuseum(Long museumId, Long userId, MyMuseumUpdateRequest request) {
+    public MyMuseumResponse updateMyMuseum(Long museumId, String userKey, MyMuseumUpdateRequest request) {
         validateMuseumUpsertRequest(request == null ? null : request.name());
-        Long artistId = resolveArtistId(userId);
+        Long artistId = resolveArtistId(userKey);
         Museum museum = museumRepository.findByMuseumIdAndArtistId(museumId, artistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
         museum.updateByOwner(
@@ -149,16 +149,16 @@ public class MuseumService {
     }
 
     @Transactional
-    public void deleteMyMuseum(Long museumId, Long userId) {
-        Long artistId = resolveArtistId(userId);
+    public void deleteMyMuseum(Long museumId, String userKey) {
+        Long artistId = resolveArtistId(userKey);
         Museum museum = museumRepository.findByMuseumIdAndArtistId(museumId, artistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
         museumArtworkRepository.deleteByMuseumId(museumId);
         museumRepository.delete(museum);
     }
 
-    public List<MyMuseumArtworkResponse> getMyMuseumArtworks(Long museumId, Long userId) {
-        Long artistId = resolveArtistId(userId);
+    public List<MyMuseumArtworkResponse> getMyMuseumArtworks(Long museumId, String userKey) {
+        Long artistId = resolveArtistId(userKey);
         requireMuseumOwner(museumId, artistId);
         return museumArtworkRepository.findByMuseumIdOrderByMuseumArtworkIdDesc(museumId)
                 .stream()
@@ -169,10 +169,10 @@ public class MuseumService {
     @Transactional
     public MyMuseumArtworkResponse createMyMuseumArtwork(
             Long museumId,
-            Long userId,
+            String userKey,
             MyMuseumArtworkCreateRequest request
     ) {
-        Long artistId = resolveArtistId(userId);
+        Long artistId = resolveArtistId(userKey);
         requireMuseumOwner(museumId, artistId);
         validateMuseumArtworkCreateRequest(request);
         String normalizedImageUrl = ImageUrlPathNormalizer.toStoragePath(request.imageUrl());
@@ -190,8 +190,8 @@ public class MuseumService {
     }
 
     @Transactional
-    public void deleteMyMuseumArtwork(Long museumId, Long museumArtworkId, Long userId) {
-        Long artistId = resolveArtistId(userId);
+    public void deleteMyMuseumArtwork(Long museumId, Long museumArtworkId, String userKey) {
+        Long artistId = resolveArtistId(userKey);
         requireMuseumOwner(museumId, artistId);
         MuseumArtwork artwork = museumArtworkRepository.findByMuseumArtworkIdAndMuseumId(museumArtworkId, museumId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum artwork not found"));
@@ -295,8 +295,8 @@ public class MuseumService {
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
     }
 
-    private Long resolveArtistId(Long userId) {
-        return profileArtistRepository.findByUserId(userId)
+    private Long resolveArtistId(String userKey) {
+        return profileArtistRepository.findByUserKey(userKey)
                 .map(ProfileArtist::getArtistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Profile artist not configured"));
     }

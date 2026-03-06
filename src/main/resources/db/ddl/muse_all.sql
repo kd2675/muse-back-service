@@ -146,13 +146,13 @@ CREATE TABLE IF NOT EXISTS contest_rule (
 
 CREATE TABLE IF NOT EXISTS profile_artist (
     artist_id BIGINT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_key VARCHAR(64) NOT NULL,
     name VARCHAR(100) NOT NULL,
     tagline VARCHAR(255),
     profile_color VARCHAR(20),
     create_date DATETIME NOT NULL,
     update_date DATETIME NOT NULL,
-    CONSTRAINT uk_profile_artist_user UNIQUE (user_id)
+    CONSTRAINT uk_profile_artist_user UNIQUE (user_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS museum (

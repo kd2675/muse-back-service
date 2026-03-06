@@ -143,11 +143,11 @@ INSERT INTO contest_rule (
     (107, '투표 기간 동안 출품작별 선택 투표로 진행', 4, NOW(), NOW());
 
 INSERT INTO profile_artist (
-    artist_id, user_id, name, tagline, profile_color, create_date, update_date
+    artist_id, user_key, name, tagline, profile_color, create_date, update_date
 ) VALUES
-    (501, 3, 'Minji Han', '빛과 질감을 탐구하는 사진가', '#2B2A28', NOW(), NOW()),
-    (502, 4, 'Jun Park', '도시 야경과 반사를 담는 포토그래퍼', '#233141', NOW(), NOW()),
-    (503, 5, 'Sena Choi', '비 오는 거리의 순간을 기록합니다', '#2D3136', NOW(), NOW());
+    (501, '3', 'Minji Han', '빛과 질감을 탐구하는 사진가', '#2B2A28', NOW(), NOW()),
+    (502, '4', 'Jun Park', '도시 야경과 반사를 담는 포토그래퍼', '#233141', NOW(), NOW()),
+    (503, '5', 'Sena Choi', '비 오는 거리의 순간을 기록합니다', '#2D3136', NOW(), NOW());
 
 INSERT INTO museum (
     museum_id, artist_id, name, description, is_public, is_featured, create_date, update_date
@@ -348,16 +348,16 @@ INSERT INTO contest_rule (
     (115, '투표 이력 재현 데이터', 4, NOW(), NOW());
 
 INSERT INTO profile_artist (
-    artist_id, user_id, name, tagline, profile_color, create_date, update_date
+    artist_id, user_key, name, tagline, profile_color, create_date, update_date
 ) VALUES
-    (504, 6, 'Dain Seo', '여백과 질감의 균형을 탐구합니다', '#2E3440', NOW(), NOW()),
-    (505, 7, 'Yejin Lim', '도시의 구조와 규칙을 사진으로 기록합니다', '#2F3B4A', NOW(), NOW()),
-    (506, 8, 'Taewoo Kang', '야간 장면의 색채 대비를 연구합니다', '#25213A', NOW(), NOW()),
-    (507, 9, 'Ara Jung', '미시적 표면과 유기 패턴을 다룹니다', '#2A3A2A', NOW(), NOW()),
-    (508, 10, 'Jinwoo Bae', '관찰 다큐멘터리 스타일로 촬영합니다', '#3B2F2A', NOW(), NOW()),
-    (509, 11, 'Sumi Oh', '미니멀 프레임과 공간감을 선호합니다', '#31333A', NOW(), NOW()),
-    (510, 12, 'Noel Kim', '저조도 인물 사진 기반의 실험을 진행합니다', '#2A2734', NOW(), NOW()),
-    (511, 13, 'Rina Yoo', '자연광 기반 컬러 스토리를 만듭니다', '#2C3A34', NOW(), NOW());
+    (504, '6', 'Dain Seo', '여백과 질감의 균형을 탐구합니다', '#2E3440', NOW(), NOW()),
+    (505, '7', 'Yejin Lim', '도시의 구조와 규칙을 사진으로 기록합니다', '#2F3B4A', NOW(), NOW()),
+    (506, '8', 'Taewoo Kang', '야간 장면의 색채 대비를 연구합니다', '#25213A', NOW(), NOW()),
+    (507, '9', 'Ara Jung', '미시적 표면과 유기 패턴을 다룹니다', '#2A3A2A', NOW(), NOW()),
+    (508, '10', 'Jinwoo Bae', '관찰 다큐멘터리 스타일로 촬영합니다', '#3B2F2A', NOW(), NOW()),
+    (509, '11', 'Sumi Oh', '미니멀 프레임과 공간감을 선호합니다', '#31333A', NOW(), NOW()),
+    (510, '12', 'Noel Kim', '저조도 인물 사진 기반의 실험을 진행합니다', '#2A2734', NOW(), NOW()),
+    (511, '13', 'Rina Yoo', '자연광 기반 컬러 스토리를 만듭니다', '#2C3A34', NOW(), NOW());
 
 INSERT INTO museum (
     museum_id, artist_id, name, description, is_public, is_featured, create_date, update_date

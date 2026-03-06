@@ -30,9 +30,9 @@ public class EntryController {
     public ResponseDataDTO<List<ContestEntrySummaryResponse>> getMyEntries(
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info("Get my contest entries");
-        return ResponseDataDTO.of(contestService.getMyEntries(userId), "출품 목록 조회 성공");
+        return ResponseDataDTO.of(contestService.getMyEntries(userKey), "출품 목록 조회 성공");
     }
 
     @GetMapping("/page")
@@ -41,10 +41,10 @@ public class EntryController {
             @RequestParam(name = "page", required = false) Integer page,
             @RequestParam(name = "size", required = false) Integer size
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info("Get my contest entries page: page={}, size={}", page, size);
         return ResponseDataDTO.of(
-                contestService.getMyEntriesPage(userId, page, size),
+                contestService.getMyEntriesPage(userKey, page, size),
                 "출품 목록 페이지 조회 성공"
         );
     }
@@ -54,16 +54,16 @@ public class EntryController {
             @PathVariable String entryId,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info("Delete contest entry: entryId={}", entryId);
-        contestService.deleteEntry(entryId, userId);
+        contestService.deleteEntry(entryId, userKey);
         return ResponseDataDTO.of(null, "출품 삭제 성공");
     }
 
-    private Long requireUserId(UserContext userContext) {
-        if (userContext == null || !userContext.isAuthenticated()) {
+    private String requireUserKey(UserContext userContext) {
+        if (userContext == null || userContext.getUserKey() == null || userContext.getUserKey().isBlank()) {
             throw new GeneralException(Code.UNAUTHORIZED, "Login required");
         }
-        return userContext.getUserId();
+        return userContext.getUserKey();
     }
 }

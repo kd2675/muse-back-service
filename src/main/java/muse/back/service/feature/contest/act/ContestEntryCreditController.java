@@ -26,18 +26,18 @@ public class ContestEntryCreditController {
             @PathVariable Long id,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info("Get contest entry credits: id={}", id);
         return ResponseDataDTO.of(
-                contestService.getEntryCreditStatus(id, userId),
+                contestService.getEntryCreditStatus(id, userKey),
                 "출품권 조회 성공"
         );
     }
 
-    private Long requireUserId(UserContext userContext) {
-        if (userContext == null || !userContext.isAuthenticated()) {
+    private String requireUserKey(UserContext userContext) {
+        if (userContext == null || userContext.getUserKey() == null || userContext.getUserKey().isBlank()) {
             throw new GeneralException(Code.UNAUTHORIZED, "Login required");
         }
-        return userContext.getUserId();
+        return userContext.getUserKey();
     }
 }

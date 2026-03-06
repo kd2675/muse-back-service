@@ -131,19 +131,19 @@ class ContestServiceTest {
     @Test
     void submitEntry_throwsValidationError_whenImageResolutionTooSmall() {
         Long contestId = 102L;
-        Long userId = 11L;
+        String userKey = "usr-test-11";
         Long artistId = 501L;
         Contest contest = buildSubmissionContest(contestId);
 
-        when(profileArtistRepository.findByUserId(userId))
-                .thenReturn(Optional.of(new ProfileArtist(artistId, userId, "Artist", "tag", "#2B2A28")));
+        when(profileArtistRepository.findByUserKey(userKey))
+                .thenReturn(Optional.of(new ProfileArtist(artistId, userKey, "Artist", "tag", "#2B2A28")));
         when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
 
         GeneralException exception = assertThrows(
                 GeneralException.class,
                 () -> contestService.submitEntry(
                         contestId,
-                        userId,
+                        userKey,
                         "title",
                         "description",
                         "sample.jpg",
@@ -160,14 +160,14 @@ class ContestServiceTest {
     @Test
     void submitEntry_consumesCreditAndIncreasesTotalWorks_whenValidInput() {
         Long contestId = 103L;
-        Long userId = 12L;
+        String userKey = "usr-test-12";
         Long artistId = 601L;
         Contest contest = buildSubmissionContest(contestId);
         ContestEntryCredit credit = new ContestEntryCredit(artistId, contestId, 1);
         ProfileStat stat = new ProfileStat(artistId, 0, 0, 0, 0);
 
-        when(profileArtistRepository.findByUserId(userId))
-                .thenReturn(Optional.of(new ProfileArtist(artistId, userId, "Artist", "tag", "#2B2A28")));
+        when(profileArtistRepository.findByUserKey(userKey))
+                .thenReturn(Optional.of(new ProfileArtist(artistId, userKey, "Artist", "tag", "#2B2A28")));
         when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
         when(contestEntryCreditRepository.findByArtistIdAndContestIdForUpdate(artistId, contestId))
                 .thenReturn(Optional.of(credit));
@@ -175,7 +175,7 @@ class ContestServiceTest {
 
         ContestEntryResponse response = contestService.submitEntry(
                 contestId,
-                userId,
+                userKey,
                 "title",
                 "description",
                 "sample.jpg",
@@ -198,12 +198,12 @@ class ContestServiceTest {
     void submitEntry_throwsForbidden_whenCreditExistsOnlyInDifferentContest() {
         Long contestId = 201L;
         Long otherContestId = 202L;
-        Long userId = 21L;
+        String userKey = "usr-test-21";
         Long artistId = 801L;
         Contest contest = buildSubmissionContest(contestId);
 
-        when(profileArtistRepository.findByUserId(userId))
-                .thenReturn(Optional.of(new ProfileArtist(artistId, userId, "Artist", "tag", "#2B2A28")));
+        when(profileArtistRepository.findByUserKey(userKey))
+                .thenReturn(Optional.of(new ProfileArtist(artistId, userKey, "Artist", "tag", "#2B2A28")));
         when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
         when(contestEntryCreditRepository.findByArtistIdAndContestIdForUpdate(artistId, contestId))
                 .thenReturn(Optional.empty());
@@ -212,7 +212,7 @@ class ContestServiceTest {
                 GeneralException.class,
                 () -> contestService.submitEntry(
                         contestId,
-                        userId,
+                        userKey,
                         "title",
                         "description",
                         "sample.jpg",
@@ -235,7 +235,7 @@ class ContestServiceTest {
     @Test
     void voteEntry_throwsConflict_whenAlreadyVotedForEntry() {
         Long contestId = 104L;
-        Long userId = 13L;
+        String userKey = "usr-test-13";
         Long artistId = 701L;
         String entryId = "EN-104-001";
         Contest contest = buildVotingContest(contestId);
@@ -250,8 +250,8 @@ class ContestServiceTest {
                 "APPROVED"
         );
 
-        when(profileArtistRepository.findByUserId(userId))
-                .thenReturn(Optional.of(new ProfileArtist(artistId, userId, "Artist", "tag", "#2B2A28")));
+        when(profileArtistRepository.findByUserKey(userKey))
+                .thenReturn(Optional.of(new ProfileArtist(artistId, userKey, "Artist", "tag", "#2B2A28")));
         when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
         when(contestEntryRepository.findByEntryIdAndContestId(entryId, contestId))
                 .thenReturn(Optional.of(targetEntry));
@@ -264,7 +264,7 @@ class ContestServiceTest {
 
         GeneralException exception = assertThrows(
                 GeneralException.class,
-                () -> contestService.voteEntry(contestId, userId, entryId)
+                () -> contestService.voteEntry(contestId, userKey, entryId)
         );
 
         assertThat(exception.getErrorCode()).isEqualTo(Code.CONFLICT);

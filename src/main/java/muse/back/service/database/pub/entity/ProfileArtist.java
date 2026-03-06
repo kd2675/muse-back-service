@@ -19,8 +19,8 @@ public class ProfileArtist extends CommonDateEntity {
     @Column(name = "artist_id")
     private Long artistId;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @Column(name = "user_key", nullable = false)
+    private String userKey;
 
     @Column(name = "name", length = 100, nullable = false)
     private String name;
@@ -31,9 +31,9 @@ public class ProfileArtist extends CommonDateEntity {
     @Column(name = "profile_color", length = 20)
     private String profileColor;
 
-    public ProfileArtist(Long artistId, Long userId, String name, String tagline, String profileColor) {
+    public ProfileArtist(Long artistId, String userKey, String name, String tagline, String profileColor) {
         this.artistId = artistId;
-        this.userId = userId;
+        this.userKey = userKey;
         this.name = name;
         this.tagline = tagline;
         this.profileColor = profileColor;

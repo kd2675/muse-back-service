@@ -2,6 +2,7 @@ package muse.back.service.database.pub;
 
 import com.zaxxer.hikari.HikariDataSource;
 import muse.back.service.common.datasource.RoutingDataSource;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
@@ -28,6 +29,13 @@ import java.util.Map;
         transactionManagerRef = "pubTransactionManager"
 )
 public class PubDataConfig {
+
+    @Value("${database.jpa.hibernate.ddl-auto:validate}")
+    private String ddlAuto;
+
+    @Value("${database.jpa.hibernate.dialect:org.hibernate.dialect.MySQLDialect}")
+    private String hibernateDialect;
+
     @Bean
     @Primary
     @ConfigurationProperties("database.datasource.pub.master")
@@ -80,8 +88,8 @@ public class PubDataConfig {
         routingDataSource.afterPropertiesSet();
 
         HashMap<String, Object> properties = new HashMap<>();
-        properties.put("hibernate.hbm2ddl.auto", "validate");
-        properties.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        properties.put("hibernate.hbm2ddl.auto", ddlAuto);
+        properties.put("hibernate.dialect", hibernateDialect);
         properties.put("hibernate.default_batch_fetch_size", 1000);
         properties.put("hibernate.show_sql", false);
         properties.put("hibernate.format_sql", true);

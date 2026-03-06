@@ -25,9 +25,9 @@ public class ProfileService {
     private final ProfilePortfolioRepository profilePortfolioRepository;
     private final ProfileAwardRepository profileAwardRepository;
 
-    public ProfileSummaryResponse getProfileSummary(Long userId) {
-        ProfileArtist artist = profileArtistRepository.findByUserId(userId)
-                .orElseGet(() -> fallbackArtist(userId));
+    public ProfileSummaryResponse getProfileSummary(String userKey) {
+        ProfileArtist artist = profileArtistRepository.findByUserKey(userKey)
+                .orElseGet(() -> fallbackArtist(userKey));
 
         ProfileStat stat = profileStatRepository.findByArtistId(artist.getArtistId())
                 .orElseGet(() -> new ProfileStat(
@@ -58,27 +58,28 @@ public class ProfileService {
         );
     }
 
-    private ProfileArtist fallbackArtist(Long userId) {
+    private ProfileArtist fallbackArtist(String userKey) {
         return new ProfileArtist(
-                userId,
-                userId,
-                "Artist " + userId,
+                0L,
+                userKey,
+                "Artist " + userKey,
                 "프로필 초기화 전",
                 "#2B2A28"
         );
     }
 
     @Transactional
-    public ProfileSummaryResponse initializeProfile(Long userId, String userName) {
-        ProfileArtist artist = profileArtistRepository.findByUserId(userId)
+    public ProfileSummaryResponse initializeProfile(String userKey, String userName) {
+        ProfileArtist artist = profileArtistRepository.findByUserKey(userKey)
                 .orElseGet(() -> {
+                    Long artistId = nextArtistId();
                     String resolvedName =
                             (userName != null && !userName.isBlank())
                                     ? userName
-                                    : "Artist " + userId;
+                                    : "Artist " + userKey;
                     ProfileArtist created = new ProfileArtist(
-                            userId,
-                            userId,
+                            artistId,
+                            userKey,
                             resolvedName,
                             "새로운 아티스트",
                             "#2B2A28"
@@ -122,6 +123,12 @@ public class ProfileService {
                 portfolio,
                 awards
         );
+    }
+
+    private Long nextArtistId() {
+        return profileArtistRepository.findTopByOrderByArtistIdDesc()
+                .map(artist -> artist.getArtistId() + 1L)
+                .orElse(1L);
     }
 
     private ProfileSummaryResponse.Artist toArtist(ProfileArtist artist) {

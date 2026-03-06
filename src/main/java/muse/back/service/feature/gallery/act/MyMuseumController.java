@@ -33,8 +33,8 @@ public class MyMuseumController {
 
     @GetMapping
     public ResponseDataDTO<List<MyMuseumResponse>> getMyMuseums(UserContext userContext) {
-        Long userId = requireUserId(userContext);
-        return ResponseDataDTO.of(museumService.getMyMuseums(userId), "내 뮤지엄 목록 조회 성공");
+        String userKey = requireUserKey(userContext);
+        return ResponseDataDTO.of(museumService.getMyMuseums(userKey), "내 뮤지엄 목록 조회 성공");
     }
 
     @PostMapping
@@ -42,10 +42,10 @@ public class MyMuseumController {
             @RequestBody MyMuseumCreateRequest request,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
-        log.info("Create museum by user: userId={}", userId);
+        String userKey = requireUserKey(userContext);
+        log.info("Create museum by user: userKey={}", userKey);
         return ResponseDataDTO.of(
-                museumService.createMyMuseum(userId, request),
+                museumService.createMyMuseum(userKey, request),
                 "뮤지엄 생성 성공"
         );
     }
@@ -56,10 +56,10 @@ public class MyMuseumController {
             @RequestBody MyMuseumUpdateRequest request,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
-        log.info("Update museum by user: userId={}, museumId={}", userId, museumId);
+        String userKey = requireUserKey(userContext);
+        log.info("Update museum by user: userKey={}, museumId={}", userKey, museumId);
         return ResponseDataDTO.of(
-                museumService.updateMyMuseum(museumId, userId, request),
+                museumService.updateMyMuseum(museumId, userKey, request),
                 "뮤지엄 수정 성공"
         );
     }
@@ -69,9 +69,9 @@ public class MyMuseumController {
             @PathVariable Long museumId,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
-        log.info("Delete museum by user: userId={}, museumId={}", userId, museumId);
-        museumService.deleteMyMuseum(museumId, userId);
+        String userKey = requireUserKey(userContext);
+        log.info("Delete museum by user: userKey={}, museumId={}", userKey, museumId);
+        museumService.deleteMyMuseum(museumId, userKey);
         return ResponseDataDTO.of(null, "뮤지엄 삭제 성공");
     }
 
@@ -80,9 +80,9 @@ public class MyMuseumController {
             @PathVariable Long museumId,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         return ResponseDataDTO.of(
-                museumService.getMyMuseumArtworks(museumId, userId),
+                museumService.getMyMuseumArtworks(museumId, userKey),
                 "내 뮤지엄 작품 목록 조회 성공"
         );
     }
@@ -93,10 +93,10 @@ public class MyMuseumController {
             @RequestBody MyMuseumArtworkCreateRequest request,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
-        log.info("Create museum artwork by user: userId={}, museumId={}", userId, museumId);
+        String userKey = requireUserKey(userContext);
+        log.info("Create museum artwork by user: userKey={}, museumId={}", userKey, museumId);
         return ResponseDataDTO.of(
-                museumService.createMyMuseumArtwork(museumId, userId, request),
+                museumService.createMyMuseumArtwork(museumId, userKey, request),
                 "뮤지엄 작품 등록 성공"
         );
     }
@@ -107,21 +107,21 @@ public class MyMuseumController {
             @PathVariable Long museumArtworkId,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info(
-                "Delete museum artwork by user: userId={}, museumId={}, museumArtworkId={}",
-                userId,
+                "Delete museum artwork by user: userKey={}, museumId={}, museumArtworkId={}",
+                userKey,
                 museumId,
                 museumArtworkId
         );
-        museumService.deleteMyMuseumArtwork(museumId, museumArtworkId, userId);
+        museumService.deleteMyMuseumArtwork(museumId, museumArtworkId, userKey);
         return ResponseDataDTO.of(null, "뮤지엄 작품 삭제 성공");
     }
 
-    private Long requireUserId(UserContext userContext) {
-        if (userContext == null || !userContext.isAuthenticated()) {
+    private String requireUserKey(UserContext userContext) {
+        if (userContext == null || userContext.getUserKey() == null || userContext.getUserKey().isBlank()) {
             throw new GeneralException(Code.UNAUTHORIZED, "Login required");
         }
-        return userContext.getUserId();
+        return userContext.getUserKey();
     }
 }

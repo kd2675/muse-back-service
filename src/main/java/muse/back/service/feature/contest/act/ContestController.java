@@ -77,10 +77,10 @@ public class ContestController {
             @PathVariable Long id,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info("Purchase entry credit: id={}", id);
         return ResponseDataDTO.of(
-                contestService.purchaseEntryCredit(id, userId),
+                contestService.purchaseEntryCredit(id, userKey),
                 "출품권 구매 성공"
         );
     }
@@ -91,12 +91,12 @@ public class ContestController {
             @RequestBody ContestEntryRequest request,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info("Submit contest entry: id={}, imageUrl={}", id, request.imageUrl());
         return ResponseDataDTO.of(
                 contestService.submitEntry(
                         id,
-                        userId,
+                        userKey,
                         request.title(),
                         request.description(),
                         request.fileName(),
@@ -115,22 +115,22 @@ public class ContestController {
             @RequestBody ContestVoteRequest request,
             UserContext userContext
     ) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info("Vote contest entry: contestId={}, entryId={}", id, request.entryId());
         return ResponseDataDTO.of(
                 contestService.voteEntry(
                         id,
-                        userId,
+                        userKey,
                         request.entryId()
                 ),
                 "콘테스트 투표 성공"
         );
     }
 
-    private Long requireUserId(UserContext userContext) {
-        if (userContext == null || !userContext.isAuthenticated()) {
+    private String requireUserKey(UserContext userContext) {
+        if (userContext == null || userContext.getUserKey() == null || userContext.getUserKey().isBlank()) {
             throw new GeneralException(Code.UNAUTHORIZED, "Login required");
         }
-        return userContext.getUserId();
+        return userContext.getUserKey();
     }
 }

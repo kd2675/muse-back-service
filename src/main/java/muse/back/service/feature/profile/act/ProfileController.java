@@ -22,26 +22,26 @@ public class ProfileController {
 
     @GetMapping("/summary")
     public ResponseDataDTO<ProfileSummaryResponse> getProfileSummary(UserContext userContext) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         log.info("Get profile summary");
-        return ResponseDataDTO.of(profileService.getProfileSummary(userId), "프로필 요약 조회 성공");
+        return ResponseDataDTO.of(profileService.getProfileSummary(userKey), "프로필 요약 조회 성공");
     }
 
     @PostMapping("/initialize")
     public ResponseDataDTO<ProfileSummaryResponse> initializeProfile(UserContext userContext) {
-        Long userId = requireUserId(userContext);
+        String userKey = requireUserKey(userContext);
         String userName = userContext.getUserName();
-        log.info("Initialize profile: userId={}", userId);
+        log.info("Initialize profile: userKey={}", userKey);
         return ResponseDataDTO.of(
-                profileService.initializeProfile(userId, userName),
+                profileService.initializeProfile(userKey, userName),
                 "프로필 생성 성공"
         );
     }
 
-    private Long requireUserId(UserContext userContext) {
-        if (userContext == null || !userContext.isAuthenticated()) {
+    private String requireUserKey(UserContext userContext) {
+        if (userContext == null || userContext.getUserKey() == null || userContext.getUserKey().isBlank()) {
             throw new GeneralException(Code.UNAUTHORIZED, "Login required");
         }
-        return userContext.getUserId();
+        return userContext.getUserKey();
     }
 }

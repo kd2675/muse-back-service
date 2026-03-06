@@ -318,7 +318,7 @@ public class ContestService {
     @Transactional
     public ContestEntryResponse submitEntry(
             Long contestId,
-            Long userId,
+            String userKey,
             String title,
             String description,
             String fileName,
@@ -327,7 +327,7 @@ public class ContestService {
             Integer imageWidthPx,
             Integer imageHeightPx
     ) {
-        Long artistId = resolveArtistId(userId);
+        Long artistId = resolveArtistId(userKey);
         Contest contest = getContestOrThrow(contestId);
         ensureSubmissionPhase(contest);
         if (imageUrl == null || imageUrl.isBlank()) {
@@ -377,8 +377,8 @@ public class ContestService {
     }
 
     @Transactional
-    public ContestEntryCreditResponse purchaseEntryCredit(Long contestId, Long userId) {
-        Long artistId = resolveArtistId(userId);
+    public ContestEntryCreditResponse purchaseEntryCredit(Long contestId, String userKey) {
+        Long artistId = resolveArtistId(userKey);
         Contest contest = getContestOrThrow(contestId);
         ensureSubmissionPhase(contest);
         ContestEntryCredit credit = getOrCreateEntryCreditForUpdate(contestId, artistId);
@@ -398,10 +398,10 @@ public class ContestService {
     @Transactional
     public ContestVoteResponse voteEntry(
             Long contestId,
-            Long userId,
+            String userKey,
             String entryId
     ) {
-        Long artistId = resolveArtistId(userId);
+        Long artistId = resolveArtistId(userKey);
         Contest contest = getContestOrThrow(contestId);
         ensureVotingPhase(contest);
 
@@ -480,8 +480,8 @@ public class ContestService {
         return ranking;
     }
 
-    public ContestEntryCreditResponse getEntryCreditStatus(Long contestId, Long userId) {
-        Long artistId = resolveArtistId(userId);
+    public ContestEntryCreditResponse getEntryCreditStatus(Long contestId, String userKey) {
+        Long artistId = resolveArtistId(userKey);
         getContestDetail(contestId);
         int credits = contestEntryCreditRepository
                 .findByArtistIdAndContestId(artistId, contestId)
@@ -544,16 +544,16 @@ public class ContestService {
         contestEntryCreditRepository.save(credit);
     }
 
-    public List<ContestEntrySummaryResponse> getMyEntries(Long userId) {
-        Long artistId = resolveArtistId(userId);
+    public List<ContestEntrySummaryResponse> getMyEntries(String userKey) {
+        Long artistId = resolveArtistId(userKey);
         return contestEntryRepository.findByArtistIdOrderByCreateDateDesc(artistId)
                 .stream()
                 .map(this::toEntrySummary)
                 .toList();
     }
 
-    public ContestEntrySummaryPageResponse getMyEntriesPage(Long userId, Integer page, Integer size) {
-        Long artistId = resolveArtistId(userId);
+    public ContestEntrySummaryPageResponse getMyEntriesPage(String userKey, Integer page, Integer size) {
+        Long artistId = resolveArtistId(userKey);
         int resolvedPage = normalizePage(page);
         int resolvedSize = normalizePageSize(size);
         long totalElements = contestEntryRepository.countByArtistId(artistId);
@@ -590,8 +590,8 @@ public class ContestService {
     }
 
     @Transactional
-    public void deleteEntry(String entryId, Long userId) {
-        Long artistId = resolveArtistId(userId);
+    public void deleteEntry(String entryId, String userKey) {
+        Long artistId = resolveArtistId(userKey);
         ContestEntry entry = contestEntryRepository.findByEntryIdAndArtistId(entryId, artistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, String.format("Entry not found with id: '%s'", entryId)));
 
@@ -1061,8 +1061,8 @@ public class ContestService {
         return LocalDateTime.now(SERVICE_ZONE);
     }
 
-    private Long resolveArtistId(Long userId) {
-        return profileArtistRepository.findByUserId(userId)
+    private Long resolveArtistId(String userKey) {
+        return profileArtistRepository.findByUserKey(userKey)
                 .map(ProfileArtist::getArtistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Profile artist not configured"));
     }
