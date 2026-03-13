@@ -19,7 +19,8 @@ import muse.back.service.database.pub.entity.ProfileArtist;
 import muse.back.service.database.pub.repository.MuseumArtworkRepository;
 import muse.back.service.database.pub.repository.MuseumRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
-import muse.back.service.common.util.ImageUrlPathNormalizer;
+import muse.back.service.common.util.ImageFileUrlResolver;
+import muse.back.service.common.util.ImageFinalizeClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import web.common.core.response.base.exception.GeneralException;
@@ -45,10 +46,13 @@ public class MuseumService {
             MODERATION_VISIBLE,
             MODERATION_REMOVED
     );
+    private static final String MUSEUM_IMAGE_TARGET_DIR = "muse/gallery/artworks";
 
     private final MuseumRepository museumRepository;
     private final MuseumArtworkRepository museumArtworkRepository;
     private final ProfileArtistRepository profileArtistRepository;
+    private final ImageFinalizeClient imageFinalizeClient;
+    private final ImageFileUrlResolver imageFileUrlResolver;
 
     public List<PublicMuseumSummaryResponse> getPublicMuseums() {
         List<Museum> museums = museumRepository.findByIsPublicTrueOrderByMuseumIdDesc()
@@ -68,7 +72,9 @@ public class MuseumService {
                                     museum.getMuseumId(),
                                     MODERATION_VISIBLE
                             );
-                    String coverImageUrl = visibleArtworks.isEmpty() ? null : visibleArtworks.get(0).getImageUrl();
+                    String coverImageUrl = visibleArtworks.isEmpty()
+                            ? null
+                            : imageFileUrlResolver.resolveImageUrl(visibleArtworks.get(0).getFileName());
                     return new PublicMuseumSummaryResponse(
                             museum.getMuseumId(),
                             museum.getName(),
@@ -97,7 +103,7 @@ public class MuseumService {
                         artwork.getMuseumArtworkId(),
                         artwork.getTitle(),
                         artwork.getDescription(),
-                        artwork.getImageUrl()
+                        imageFileUrlResolver.resolveImageUrl(artwork.getFileName())
                 ))
                 .toList();
 
@@ -175,15 +181,16 @@ public class MuseumService {
         Long artistId = resolveArtistId(userKey);
         requireMuseumOwner(museumId, artistId);
         validateMuseumArtworkCreateRequest(request);
-        String normalizedImageUrl = ImageUrlPathNormalizer.toStoragePath(request.imageUrl());
+        String finalizedImageFileName = imageFinalizeClient
+                .finalizeImage(request.fileName(), MUSEUM_IMAGE_TARGET_DIR)
+                .fileName();
 
         MuseumArtwork artwork = museumArtworkRepository.save(new MuseumArtwork(
                 museumId,
                 artistId,
                 request.title().trim(),
                 trimToNull(request.description()),
-                request.fileName().trim(),
-                normalizedImageUrl,
+                finalizedImageFileName,
                 MODERATION_REVIEWING
         ));
         return toMyMuseumArtworkResponse(artwork);
@@ -332,9 +339,6 @@ public class MuseumService {
         if (request.fileName() == null || request.fileName().isBlank()) {
             throw new GeneralException(Code.VALIDATION_ERROR, "Artwork fileName is required");
         }
-        if (request.imageUrl() == null || request.imageUrl().isBlank()) {
-            throw new GeneralException(Code.VALIDATION_ERROR, "Artwork imageUrl is required");
-        }
     }
 
     private String normalizeAdminModerationStatus(String value) {
@@ -390,7 +394,7 @@ public class MuseumService {
                 artwork.getTitle(),
                 artwork.getDescription(),
                 artwork.getFileName(),
-                artwork.getImageUrl(),
+                imageFileUrlResolver.resolveImageUrl(artwork.getFileName()),
                 artwork.getModerationStatus(),
                 artwork.getCreatedAt()
         );
@@ -405,7 +409,7 @@ public class MuseumService {
                 artwork.getTitle(),
                 artwork.getDescription(),
                 artwork.getFileName(),
-                artwork.getImageUrl(),
+                imageFileUrlResolver.resolveImageUrl(artwork.getFileName()),
                 artwork.getModerationStatus(),
                 artwork.getCreatedAt()
         );

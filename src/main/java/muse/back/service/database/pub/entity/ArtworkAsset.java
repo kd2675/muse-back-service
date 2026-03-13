@@ -22,12 +22,8 @@ public class ArtworkAsset extends CommonDateEntity {
     @Column(name = "file_name", length = 255, nullable = false)
     private String fileName;
 
-    @Column(name = "image_url", length = 2048, nullable = false)
-    private String imageUrl;
-
-    public ArtworkAsset(Long artworkId, String fileName, String imageUrl) {
+    public ArtworkAsset(Long artworkId, String fileName) {
         this.artworkId = artworkId;
         this.fileName = fileName;
-        this.imageUrl = imageUrl;
     }
 }

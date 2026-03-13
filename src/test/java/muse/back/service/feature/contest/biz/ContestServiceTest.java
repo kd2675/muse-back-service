@@ -1,5 +1,7 @@
 package muse.back.service.feature.contest.biz;
 
+import muse.back.service.common.util.ImageFileUrlResolver;
+import muse.back.service.common.util.ImageFinalizeClient;
 import muse.back.service.database.pub.dto.ContestDetailResponse;
 import muse.back.service.database.pub.dto.ContestEntryResponse;
 import muse.back.service.database.pub.dto.ContestSummaryResponse;
@@ -60,6 +62,10 @@ class ContestServiceTest {
     private ProfileAwardRepository profileAwardRepository;
     @Mock
     private ProfileStatRepository profileStatRepository;
+    @Mock
+    private ImageFinalizeClient imageFinalizeClient;
+    @Mock
+    private ImageFileUrlResolver imageFileUrlResolver;
 
     @InjectMocks
     private ContestService contestService;
@@ -146,8 +152,7 @@ class ContestServiceTest {
                         userKey,
                         "title",
                         "description",
-                        "sample.jpg",
-                        "https://example.com/a.jpg",
+                        "temp/2026/03/13/sample.jpg",
                         1024L,
                         2999,
                         3000
@@ -172,14 +177,23 @@ class ContestServiceTest {
         when(contestEntryCreditRepository.findByArtistIdAndContestIdForUpdate(artistId, contestId))
                 .thenReturn(Optional.of(credit));
         when(profileStatRepository.findByArtistId(artistId)).thenReturn(Optional.of(stat));
+        when(imageFinalizeClient.finalizeImage("temp/2026/03/13/sample.jpg", "muse/contest/entries"))
+                .thenReturn(new ImageFinalizeClient.FinalizedImage(
+                        "muse/contest/entries/2026/03/13/sample.jpg",
+                        "sample.jpg",
+                        "http://localhost:8081/images/muse/contest/entries/2026/03/13/sample.jpg",
+                        "http://localhost:8081/images/muse/contest/entries/2026/03/13/sample_thumb.jpg",
+                        false
+                ));
+        when(imageFileUrlResolver.resolveImageUrl("muse/contest/entries/2026/03/13/sample.jpg"))
+                .thenReturn("http://localhost:8081/images/muse/contest/entries/2026/03/13/sample.jpg");
 
         ContestEntryResponse response = contestService.submitEntry(
                 contestId,
                 userKey,
                 "title",
                 "description",
-                "sample.jpg",
-                "https://example.com/a.jpg",
+                "temp/2026/03/13/sample.jpg",
                 4_096L,
                 3000,
                 3000
@@ -207,6 +221,14 @@ class ContestServiceTest {
         when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
         when(contestEntryCreditRepository.findByArtistIdAndContestIdForUpdate(artistId, contestId))
                 .thenReturn(Optional.empty());
+        when(imageFinalizeClient.finalizeImage("temp/2026/03/13/sample.jpg", "muse/contest/entries"))
+                .thenReturn(new ImageFinalizeClient.FinalizedImage(
+                        "muse/contest/entries/2026/03/13/sample.jpg",
+                        "sample.jpg",
+                        "http://localhost:8081/images/muse/contest/entries/2026/03/13/sample.jpg",
+                        "http://localhost:8081/images/muse/contest/entries/2026/03/13/sample_thumb.jpg",
+                        false
+                ));
 
         GeneralException exception = assertThrows(
                 GeneralException.class,
@@ -215,8 +237,7 @@ class ContestServiceTest {
                         userKey,
                         "title",
                         "description",
-                        "sample.jpg",
-                        "https://example.com/a.jpg",
+                        "temp/2026/03/13/sample.jpg",
                         4_096L,
                         3000,
                         3000
@@ -246,7 +267,6 @@ class ContestServiceTest {
                 "entry",
                 "desc",
                 "sample.jpg",
-                "https://example.com/e.jpg",
                 "APPROVED"
         );
 
@@ -282,13 +302,16 @@ class ContestServiceTest {
                 "entry",
                 "desc",
                 "sample.jpg",
-                "https://example.com/e.jpg",
                 "SUBMITTED"
         );
 
         when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
         when(contestEntryRepository.findByEntryIdAndContestId(entryId, contestId))
                 .thenReturn(Optional.of(entry));
+        when(profileArtistRepository.findById(901L))
+                .thenReturn(Optional.of(new ProfileArtist(901L, "usr-admin", "Admin Artist", "tag", "#111111")));
+        when(imageFileUrlResolver.resolveImageUrl("sample.jpg"))
+                .thenReturn("https://example.com/e.jpg");
 
         var response = contestService.updateAdminEntryStatus(contestId, entryId, "APPROVED");
 

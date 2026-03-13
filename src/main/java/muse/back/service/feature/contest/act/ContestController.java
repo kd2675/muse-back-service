@@ -92,7 +92,7 @@ public class ContestController {
             UserContext userContext
     ) {
         String userKey = requireUserKey(userContext);
-        log.info("Submit contest entry: id={}, imageUrl={}", id, request.imageUrl());
+        log.info("Submit contest entry: id={}, fileName={}", id, request.fileName());
         return ResponseDataDTO.of(
                 contestService.submitEntry(
                         id,
@@ -100,7 +100,6 @@ public class ContestController {
                         request.title(),
                         request.description(),
                         request.fileName(),
-                        request.imageUrl(),
                         request.fileSizeBytes(),
                         request.imageWidthPx(),
                         request.imageHeightPx()

@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS contest_entry (
     title VARCHAR(200) NULL,
     description VARCHAR(2000) NULL,
     file_name VARCHAR(255) NOT NULL,
-    image_url VARCHAR(2048) NOT NULL,
     status VARCHAR(20) NOT NULL,
     create_date DATETIME NOT NULL,
     update_date DATETIME NOT NULL
@@ -89,7 +88,6 @@ CREATE INDEX idx_artwork_category_key
 CREATE TABLE IF NOT EXISTS artwork_asset (
     artwork_id BIGINT PRIMARY KEY,
     file_name VARCHAR(255) NOT NULL,
-    image_url VARCHAR(2048) NOT NULL,
     create_date DATETIME NOT NULL,
     update_date DATETIME NOT NULL,
     CONSTRAINT fk_artwork_asset_artwork
@@ -181,7 +179,6 @@ CREATE TABLE IF NOT EXISTS museum_artwork (
     title VARCHAR(200) NOT NULL,
     description VARCHAR(2000),
     file_name VARCHAR(255) NOT NULL,
-    image_url VARCHAR(2048) NOT NULL,
     moderation_status VARCHAR(20) NOT NULL DEFAULT 'REVIEWING',
     create_date DATETIME NOT NULL,
     update_date DATETIME NOT NULL,

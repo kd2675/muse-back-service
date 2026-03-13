@@ -30,7 +30,8 @@ import muse.back.service.database.pub.repository.ContestRuleRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import muse.back.service.database.pub.repository.ProfileAwardRepository;
 import muse.back.service.database.pub.repository.ProfileStatRepository;
-import muse.back.service.common.util.ImageUrlPathNormalizer;
+import muse.back.service.common.util.ImageFileUrlResolver;
+import muse.back.service.common.util.ImageFinalizeClient;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -80,6 +81,7 @@ public class ContestService {
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png");
     private static final int MAX_PUBLIC_ENTRY_PAGE_SIZE = 50;
     private static final String ENTRY_MODE_SUBMITTED_ASC = "SUBMITTED_ASC";
+    private static final String CONTEST_IMAGE_TARGET_DIR = "muse/contest/entries";
 
     private final ContestRepository contestRepository;
     private final ContestRuleRepository contestRuleRepository;
@@ -89,6 +91,8 @@ public class ContestService {
     private final ProfileArtistRepository profileArtistRepository;
     private final ProfileAwardRepository profileAwardRepository;
     private final ProfileStatRepository profileStatRepository;
+    private final ImageFinalizeClient imageFinalizeClient;
+    private final ImageFileUrlResolver imageFileUrlResolver;
 
     public List<ContestSummaryResponse> getActiveContests() {
         LocalDateTime currentTime = now();
@@ -322,7 +326,6 @@ public class ContestService {
             String title,
             String description,
             String fileName,
-            String imageUrl,
             Long fileSizeBytes,
             Integer imageWidthPx,
             Integer imageHeightPx
@@ -330,14 +333,11 @@ public class ContestService {
         Long artistId = resolveArtistId(userKey);
         Contest contest = getContestOrThrow(contestId);
         ensureSubmissionPhase(contest);
-        if (imageUrl == null || imageUrl.isBlank()) {
-            throw new GeneralException(Code.VALIDATION_ERROR, "Image URL is required");
-        }
         if (fileName == null || fileName.isBlank()) {
             throw new GeneralException(Code.VALIDATION_ERROR, "File name is required");
         }
         validateUploadedFile(fileName, fileSizeBytes, imageWidthPx, imageHeightPx);
-        String normalizedImageUrl = ImageUrlPathNormalizer.toStoragePath(imageUrl);
+        String finalizedFileName = imageFinalizeClient.finalizeImage(fileName, CONTEST_IMAGE_TARGET_DIR).fileName();
         String entryId = generateEntryId(contestId);
         consumeEntryCredit(contestId, artistId);
 
@@ -347,8 +347,7 @@ public class ContestService {
                 contestId,
                 title,
                 description,
-                fileName,
-                normalizedImageUrl,
+                finalizedFileName,
                 STATUS_SUBMITTED
         );
         contest.increaseParticipationCount();
@@ -370,8 +369,8 @@ public class ContestService {
                 entryId,
                 title,
                 description,
-                fileName,
-                normalizedImageUrl,
+                finalizedFileName,
+                imageFileUrlResolver.resolveImageUrl(finalizedFileName),
                 STATUS_SUBMITTED
         );
     }
@@ -472,7 +471,7 @@ public class ContestService {
                     index + 1,
                     entry.getEntryId(),
                     entry.getTitle(),
-                    entry.getImageUrl(),
+                    imageFileUrlResolver.resolveImageUrl(entry.getFileName()),
                     artistNamesById.getOrDefault(entry.getArtistId(), "Unknown Artist"),
                     voteCounts.getOrDefault(entry.getEntryId(), 0L)
             ));
@@ -521,7 +520,7 @@ public class ContestService {
                 entry.getEntryId(),
                 entry.getContestId(),
                 entry.getTitle(),
-                entry.getImageUrl(),
+                imageFileUrlResolver.resolveImageUrl(entry.getFileName()),
                 artistName,
                 entry.getStatus(),
                 formatSubmittedAt(entry)
@@ -633,7 +632,7 @@ public class ContestService {
                 entry.getContestId(),
                 theme,
                 entry.getTitle(),
-                entry.getImageUrl(),
+                imageFileUrlResolver.resolveImageUrl(entry.getFileName()),
                 entry.getStatus(),
                 formatSubmittedAt(entry)
         );
@@ -646,7 +645,7 @@ public class ContestService {
                         entry.getEntryId(),
                         entry.getContestId(),
                         entry.getTitle(),
-                        entry.getImageUrl(),
+                        imageFileUrlResolver.resolveImageUrl(entry.getFileName()),
                         artistNamesById.getOrDefault(entry.getArtistId(), "Unknown Artist"),
                         entry.getStatus(),
                         formatSubmittedAt(entry)

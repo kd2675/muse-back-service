@@ -16,6 +16,7 @@ import muse.back.service.database.pub.repository.HomePickRepository;
 import muse.back.service.database.pub.repository.MuseumArtworkRepository;
 import muse.back.service.database.pub.repository.MuseumRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
+import muse.back.service.common.util.ImageFileUrlResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class HomeService {
     private final MuseumArtworkRepository museumArtworkRepository;
     private final ProfileArtistRepository profileArtistRepository;
     private final ContestRepository contestRepository;
+    private final ImageFileUrlResolver imageFileUrlResolver;
 
     public HomeResponse getHome() {
         LocalDateTime currentTime = LocalDateTime.now();
@@ -115,7 +117,9 @@ public class HomeService {
                         museum.getMuseumId(),
                         "VISIBLE"
                 );
-        String coverImageUrl = visibleArtworks.isEmpty() ? null : visibleArtworks.get(0).getImageUrl();
+        String coverImageUrl = visibleArtworks.isEmpty()
+                ? null
+                : imageFileUrlResolver.resolveImageUrl(visibleArtworks.get(0).getFileName());
         return new HomeResponse.MuseumCard(
                 museum.getMuseumId(),
                 museum.getName(),

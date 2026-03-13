@@ -11,6 +11,7 @@ import muse.back.service.database.pub.repository.ContestRepository;
 import muse.back.service.database.pub.repository.MuseumArtworkRepository;
 import muse.back.service.database.pub.repository.MuseumRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
+import muse.back.service.common.util.ImageFileUrlResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,7 @@ public class OverviewService {
     private final MuseumRepository museumRepository;
     private final MuseumArtworkRepository museumArtworkRepository;
     private final ProfileArtistRepository profileArtistRepository;
+    private final ImageFileUrlResolver imageFileUrlResolver;
 
     public OverviewResponse getOverview() {
         LocalDateTime currentTime = LocalDateTime.now();
@@ -77,7 +79,9 @@ public class OverviewService {
                         museum.getMuseumId(),
                         "VISIBLE"
                 );
-        String coverImageUrl = visibleArtworks.isEmpty() ? null : visibleArtworks.get(0).getImageUrl();
+        String coverImageUrl = visibleArtworks.isEmpty()
+                ? null
+                : imageFileUrlResolver.resolveImageUrl(visibleArtworks.get(0).getFileName());
 
         return new OverviewResponse.MuseumCard(
                 museum.getMuseumId(),

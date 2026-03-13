@@ -37,9 +37,6 @@ public class MuseumArtwork extends CommonDateEntity {
     @Column(name = "file_name", length = 255, nullable = false)
     private String fileName;
 
-    @Column(name = "image_url", length = 2048, nullable = false)
-    private String imageUrl;
-
     @Column(name = "moderation_status", length = 20, nullable = false)
     private String moderationStatus;
 
@@ -49,7 +46,6 @@ public class MuseumArtwork extends CommonDateEntity {
             String title,
             String description,
             String fileName,
-            String imageUrl,
             String moderationStatus
     ) {
         this.museumId = museumId;
@@ -57,7 +53,6 @@ public class MuseumArtwork extends CommonDateEntity {
         this.title = title;
         this.description = description;
         this.fileName = fileName;
-        this.imageUrl = imageUrl;
         this.moderationStatus = moderationStatus;
     }
 
