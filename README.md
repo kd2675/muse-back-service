@@ -59,6 +59,11 @@ Muse 도메인 백엔드 서비스입니다. Contest, Gallery, Home, Overview, P
 ./gradlew :muse-back-service:test
 ```
 
+## Related Docs
+
+- `AGENTS.md`
+- `AGENTS_MUSE_CONTEST_UNIFIED.md`
+
 현재 테스트는 `ContestServiceTest`, `HomeServiceTest`, `ProfileServiceTest`, `contextLoads` 중심이라 회귀 범위는 제한적입니다.
 
 ## 설정 포인트
