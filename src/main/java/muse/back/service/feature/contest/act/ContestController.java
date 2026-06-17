@@ -1,8 +1,9 @@
 package muse.back.service.feature.contest.act;
 
+import auth.common.core.context.RequirePrincipalRole;
+import auth.common.core.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import auth.common.core.context.UserContext;
 import muse.back.service.feature.contest.biz.ContestService;
 import muse.back.service.database.pub.dto.ContestDetailResponse;
 import muse.back.service.database.pub.dto.ContestEntryCreditResponse;
@@ -73,6 +74,7 @@ public class ContestController {
     }
 
     @PostMapping("/{id}/entry-credits/purchase")
+    @RequirePrincipalRole
     public ResponseDataDTO<ContestEntryCreditResponse> purchaseEntryCredit(
             @PathVariable Long id,
             UserContext userContext
@@ -86,6 +88,7 @@ public class ContestController {
     }
 
     @PostMapping("/{id}/entries")
+    @RequirePrincipalRole
     public ResponseDataDTO<ContestEntryResponse> submitEntry(
             @PathVariable Long id,
             @RequestBody ContestEntryRequest request,
@@ -109,6 +112,7 @@ public class ContestController {
     }
 
     @PostMapping("/{id}/votes")
+    @RequirePrincipalRole
     public ResponseDataDTO<ContestVoteResponse> voteEntry(
             @PathVariable Long id,
             @RequestBody ContestVoteRequest request,

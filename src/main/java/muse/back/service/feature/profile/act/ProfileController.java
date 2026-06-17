@@ -1,8 +1,9 @@
 package muse.back.service.feature.profile.act;
 
+import auth.common.core.context.RequirePrincipalRole;
+import auth.common.core.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import auth.common.core.context.UserContext;
 import muse.back.service.database.pub.dto.ProfileSummaryResponse;
 import muse.back.service.feature.profile.biz.ProfileService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,7 @@ import web.common.core.response.base.vo.Code;
 
 @Slf4j
 @RestController
+@RequirePrincipalRole
 @RequestMapping("/api/muse/v1/profile")
 @RequiredArgsConstructor
 public class ProfileController {

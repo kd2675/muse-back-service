@@ -1,8 +1,9 @@
 package muse.back.service.feature.contest.act;
 
+import auth.common.core.context.RequirePrincipalRole;
+import auth.common.core.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import auth.common.core.context.UserContext;
 import muse.back.service.database.pub.dto.ContestEntryCreditResponse;
 import muse.back.service.feature.contest.biz.ContestService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,7 @@ import web.common.core.response.base.vo.Code;
 
 @Slf4j
 @RestController
+@RequirePrincipalRole
 @RequestMapping("/api/muse/v1/me/contests")
 @RequiredArgsConstructor
 public class ContestEntryCreditController {

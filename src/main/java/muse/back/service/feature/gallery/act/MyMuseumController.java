@@ -1,5 +1,6 @@
 package muse.back.service.feature.gallery.act;
 
+import auth.common.core.context.RequirePrincipalRole;
 import auth.common.core.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
+@RequirePrincipalRole
 @RequestMapping("/api/muse/v1/me/museums")
 @RequiredArgsConstructor
 public class MyMuseumController {

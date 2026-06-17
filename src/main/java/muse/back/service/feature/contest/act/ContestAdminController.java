@@ -1,5 +1,7 @@
 package muse.back.service.feature.contest.act;
 
+import auth.common.core.constant.UserRole;
+import auth.common.core.context.RequirePrincipalRole;
 import auth.common.core.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,13 +19,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import web.common.core.response.base.dto.ResponseDataDTO;
-import web.common.core.response.base.exception.GeneralException;
-import web.common.core.response.base.vo.Code;
 
 import java.util.List;
 
 @Slf4j
 @RestController
+@RequirePrincipalRole(anyOf = {UserRole.ADMIN})
 @RequestMapping("/api/muse/v1/admin/contests")
 @RequiredArgsConstructor
 public class ContestAdminController {
@@ -32,7 +33,6 @@ public class ContestAdminController {
 
     @GetMapping
     public ResponseDataDTO<List<AdminContestResponse>> getAdminContests(UserContext userContext) {
-        requireAdmin(userContext);
         return ResponseDataDTO.of(contestService.getAdminContests(), "관리자 콘테스트 목록 조회 성공");
     }
 
@@ -41,7 +41,6 @@ public class ContestAdminController {
             @RequestBody AdminContestUpsertRequest request,
             UserContext userContext
     ) {
-        requireAdmin(userContext);
         log.info("Create contest by admin");
         return ResponseDataDTO.of(contestService.createContest(request), "콘테스트 생성 성공");
     }
@@ -52,7 +51,6 @@ public class ContestAdminController {
             @RequestBody AdminContestUpsertRequest request,
             UserContext userContext
     ) {
-        requireAdmin(userContext);
         log.info("Update contest by admin: id={}", id);
         return ResponseDataDTO.of(contestService.updateContest(id, request), "콘테스트 수정 성공");
     }
@@ -62,7 +60,6 @@ public class ContestAdminController {
             @PathVariable Long id,
             UserContext userContext
     ) {
-        requireAdmin(userContext);
         log.info("Finalize contest by admin: id={}", id);
         return ResponseDataDTO.of(contestService.finalizeContestResults(id), "콘테스트 결과 확정 성공");
     }
@@ -72,7 +69,6 @@ public class ContestAdminController {
             @PathVariable Long id,
             UserContext userContext
     ) {
-        requireAdmin(userContext);
         log.info("Get contest entries by admin: id={}", id);
         return ResponseDataDTO.of(contestService.getAdminContestEntries(id), "관리자 출품 목록 조회 성공");
     }
@@ -84,7 +80,6 @@ public class ContestAdminController {
             @RequestBody AdminContestEntryStatusUpdateRequest request,
             UserContext userContext
     ) {
-        requireAdmin(userContext);
         log.info("Update contest entry status by admin: contestId={}, entryId={}, status={}", id, entryId, request.status());
         return ResponseDataDTO.of(
                 contestService.updateAdminEntryStatus(id, entryId, request.status()),
@@ -92,12 +87,4 @@ public class ContestAdminController {
         );
     }
 
-    private void requireAdmin(UserContext userContext) {
-        if (userContext == null || !userContext.isAuthenticated()) {
-            throw new GeneralException(Code.UNAUTHORIZED, "Login required");
-        }
-        if (!userContext.isAdmin()) {
-            throw new GeneralException(Code.FORBIDDEN, "Admin role required");
-        }
-    }
 }
