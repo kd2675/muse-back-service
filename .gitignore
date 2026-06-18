@@ -46,3 +46,8 @@ GEMINI*
 .env
 .env.*
 !.env.example
+
+# Local agent/tool artifacts
+.codex/
+.claude/
+artifacts/
