@@ -24,6 +24,12 @@ spring:
     database:
       replace: any
 
+eureka:
+  client:
+    enabled: false
+    registerWithEureka: false
+    fetchRegistry: false
+
 database:
   datasource:
     pub:
