@@ -2,6 +2,7 @@ package muse.back.service.feature.contest.biz;
 
 import muse.back.service.common.util.ImageFileUrlResolver;
 import muse.back.service.common.util.ImageFinalizeClient;
+import muse.back.service.common.util.ImageCleanupService;
 import muse.back.service.database.pub.dto.ContestDetailResponse;
 import muse.back.service.database.pub.dto.ContestEntryResponse;
 import muse.back.service.database.pub.dto.ContestSummaryResponse;
@@ -9,16 +10,20 @@ import muse.back.service.database.pub.dto.AdminContestResponse;
 import muse.back.service.database.pub.entity.Contest;
 import muse.back.service.database.pub.entity.ContestEntry;
 import muse.back.service.database.pub.entity.ContestEntryCredit;
+import muse.back.service.database.pub.entity.ContestResult;
 import muse.back.service.database.pub.entity.ProfileArtist;
 import muse.back.service.database.pub.entity.ProfileStat;
 import muse.back.service.database.pub.repository.ContestEntryCreditRepository;
 import muse.back.service.database.pub.repository.ContestEntryLedgerRepository;
+import muse.back.service.database.pub.repository.ContestEntryDraftRepository;
 import muse.back.service.database.pub.repository.ContestEntryRepository;
 import muse.back.service.database.pub.repository.ContestRepository;
+import muse.back.service.database.pub.repository.ContestResultRepository;
 import muse.back.service.database.pub.repository.ContestRuleRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import muse.back.service.database.pub.repository.ProfileAwardRepository;
 import muse.back.service.database.pub.repository.ProfileStatRepository;
+import muse.back.service.feature.notification.biz.NotificationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,6 +41,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
@@ -49,6 +55,8 @@ class ContestServiceTest {
     @Mock
     private ContestRepository contestRepository;
     @Mock
+    private ContestResultRepository contestResultRepository;
+    @Mock
     private ContestRuleRepository contestRuleRepository;
     @Mock
     private ContestEntryRepository contestEntryRepository;
@@ -57,6 +65,8 @@ class ContestServiceTest {
     @Mock
     private ContestEntryLedgerRepository contestEntryLedgerRepository;
     @Mock
+    private ContestEntryDraftRepository contestEntryDraftRepository;
+    @Mock
     private ProfileArtistRepository profileArtistRepository;
     @Mock
     private ProfileAwardRepository profileAwardRepository;
@@ -64,8 +74,13 @@ class ContestServiceTest {
     private ProfileStatRepository profileStatRepository;
     @Mock
     private ImageFinalizeClient imageFinalizeClient;
+
+    @Mock
+    private ImageCleanupService imageCleanupService;
     @Mock
     private ImageFileUrlResolver imageFileUrlResolver;
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private ContestService contestService;
@@ -143,7 +158,7 @@ class ContestServiceTest {
 
         when(profileArtistRepository.findByUserKey(userKey))
                 .thenReturn(Optional.of(new ProfileArtist(artistId, userKey, "Artist", "tag", "#2B2A28")));
-        when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
+        when(contestRepository.findByIdForUpdate(contestId)).thenReturn(Optional.of(contest));
 
         GeneralException exception = assertThrows(
                 GeneralException.class,
@@ -173,10 +188,10 @@ class ContestServiceTest {
 
         when(profileArtistRepository.findByUserKey(userKey))
                 .thenReturn(Optional.of(new ProfileArtist(artistId, userKey, "Artist", "tag", "#2B2A28")));
-        when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
+        when(contestRepository.findByIdForUpdate(contestId)).thenReturn(Optional.of(contest));
         when(contestEntryCreditRepository.findByArtistIdAndContestIdForUpdate(artistId, contestId))
                 .thenReturn(Optional.of(credit));
-        when(profileStatRepository.findByArtistId(artistId)).thenReturn(Optional.of(stat));
+        when(profileStatRepository.findByArtistIdForUpdate(artistId)).thenReturn(Optional.of(stat));
         when(imageFinalizeClient.finalizeImage("temp/2026/03/13/sample.jpg", "muse/contest/entries"))
                 .thenReturn(new ImageFinalizeClient.FinalizedImage(
                         "muse/contest/entries/2026/03/13/sample.jpg",
@@ -185,7 +200,10 @@ class ContestServiceTest {
                         "http://localhost:8081/images/muse/contest/entries/2026/03/13/sample_thumb.jpg",
                         false
                 ));
-        when(imageFileUrlResolver.resolveImageUrl("muse/contest/entries/2026/03/13/sample.jpg"))
+        when(imageFileUrlResolver.resolveImageUrl(
+                "muse/contest/entries/2026/03/13/sample.jpg",
+                "/images/muse/contest/entries/2026/03/13/sample.jpg"
+        ))
                 .thenReturn("http://localhost:8081/images/muse/contest/entries/2026/03/13/sample.jpg");
 
         ContestEntryResponse response = contestService.submitEntry(
@@ -218,7 +236,7 @@ class ContestServiceTest {
 
         when(profileArtistRepository.findByUserKey(userKey))
                 .thenReturn(Optional.of(new ProfileArtist(artistId, userKey, "Artist", "tag", "#2B2A28")));
-        when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
+        when(contestRepository.findByIdForUpdate(contestId)).thenReturn(Optional.of(contest));
         when(contestEntryCreditRepository.findByArtistIdAndContestIdForUpdate(artistId, contestId))
                 .thenReturn(Optional.empty());
         when(imageFinalizeClient.finalizeImage("temp/2026/03/13/sample.jpg", "muse/contest/entries"))
@@ -310,7 +328,7 @@ class ContestServiceTest {
                 .thenReturn(Optional.of(entry));
         when(profileArtistRepository.findById(901L))
                 .thenReturn(Optional.of(new ProfileArtist(901L, "usr-admin", "Admin Artist", "tag", "#111111")));
-        when(imageFileUrlResolver.resolveImageUrl("sample.jpg"))
+        when(imageFileUrlResolver.resolveImageUrl("sample.jpg", null))
                 .thenReturn("https://example.com/e.jpg");
 
         var response = contestService.updateAdminEntryStatus(contestId, entryId, "APPROVED");
@@ -360,23 +378,76 @@ class ContestServiceTest {
         Long contestId = 401L;
         Contest contest = buildEndedContest(contestId);
 
-        when(contestRepository.findById(contestId)).thenReturn(Optional.of(contest));
-        when(contestEntryRepository.existsByContestIdAndStatusIn(
-                contestId,
-                Set.of("APPROVED", "REJECTED")
-        )).thenReturn(false);
-        when(contestEntryRepository.findByContestIdAndStatusIn(
-                contestId,
-                Set.of("SUBMITTED", "APPROVED")
-        )).thenReturn(List.of());
+        when(contestRepository.findByIdForUpdate(contestId)).thenReturn(Optional.of(contest));
+        when(contestResultRepository.existsById(contestId)).thenReturn(false);
+        when(contestEntryRepository.findByContestIdOrderByCreateDateDesc(contestId)).thenReturn(List.of());
+        when(contestEntryLedgerRepository.findByContestIdAndReason(contestId, "VOTE")).thenReturn(List.of());
 
-        var response = contestService.finalizeContestResults(contestId);
+        var response = contestService.finalizeContestResults(contestId, "admin-1");
 
         assertThat(response.contestId()).isEqualTo(contestId);
         assertThat(response.phase()).isEqualTo("ENDED");
         assertThat(response.winners()).isEmpty();
         verify(contestRepository, never()).save(any());
         verify(contestEntryRepository, never()).saveAll(any());
+        verify(contestResultRepository).save(any(ContestResult.class));
+    }
+
+    @Test
+    void finalizeContestResults_awardsReviewedEntriesAndRejectsRemainingEntries() {
+        Long contestId = 402L;
+        Contest contest = buildEndedContest(contestId);
+        ContestEntry first = buildEntry("EN-402-001", 1001L, contestId, "APPROVED");
+        ContestEntry second = buildEntry("EN-402-002", 1002L, contestId, "APPROVED");
+        ContestEntry third = buildEntry("EN-402-003", 1003L, contestId, "APPROVED");
+        ContestEntry notReviewed = buildEntry("EN-402-004", 1004L, contestId, "SUBMITTED");
+        List<ContestEntry> entries = List.of(first, second, third, notReviewed);
+
+        when(contestRepository.findByIdForUpdate(contestId)).thenReturn(Optional.of(contest));
+        when(contestResultRepository.existsById(contestId)).thenReturn(false);
+        when(contestEntryRepository.findByContestIdOrderByCreateDateDesc(contestId)).thenReturn(entries);
+        when(contestEntryLedgerRepository.findByContestIdAndReason(contestId, "VOTE")).thenReturn(List.of());
+        when(profileArtistRepository.findByArtistIdIn(Set.of(1001L, 1002L, 1003L))).thenReturn(List.of(
+                new ProfileArtist(1001L, "artist-1", "Artist 1", "tag", "#111111"),
+                new ProfileArtist(1002L, "artist-2", "Artist 2", "tag", "#222222"),
+                new ProfileArtist(1003L, "artist-3", "Artist 3", "tag", "#333333")
+        ));
+        when(profileStatRepository.findByArtistIdForUpdate(1001L)).thenReturn(Optional.of(new ProfileStat(1001L, 1, 0, 0, 0)));
+        when(profileStatRepository.findByArtistIdForUpdate(1002L)).thenReturn(Optional.of(new ProfileStat(1002L, 1, 0, 0, 0)));
+        when(profileStatRepository.findByArtistIdForUpdate(1003L)).thenReturn(Optional.of(new ProfileStat(1003L, 1, 0, 0, 0)));
+
+        var response = contestService.finalizeContestResults(contestId, "admin-1");
+
+        assertThat(response.winners()).hasSize(3);
+        assertThat(first.getStatus()).isEqualTo("APPROVED");
+        assertThat(second.getStatus()).isEqualTo("APPROVED");
+        assertThat(third.getStatus()).isEqualTo("APPROVED");
+        assertThat(notReviewed.getStatus()).isEqualTo("REJECTED");
+        verify(profileAwardRepository, times(3)).save(any());
+        verify(contestEntryRepository).saveAll(entries);
+        verify(contestResultRepository).save(any(ContestResult.class));
+    }
+
+    @Test
+    void finalizeContestResults_throwsConflict_whenFinalizationRecordExists() {
+        Long contestId = 403L;
+        Contest contest = buildEndedContest(contestId);
+
+        when(contestRepository.findByIdForUpdate(contestId)).thenReturn(Optional.of(contest));
+        when(contestResultRepository.existsById(contestId)).thenReturn(true);
+
+        GeneralException exception = assertThrows(
+                GeneralException.class,
+                () -> contestService.finalizeContestResults(contestId, "admin-1")
+        );
+
+        assertThat(exception.getErrorCode()).isEqualTo(Code.CONFLICT);
+        verify(contestEntryRepository, never()).findByContestIdOrderByCreateDateDesc(contestId);
+        verify(profileAwardRepository, never()).save(any());
+    }
+
+    private ContestEntry buildEntry(String entryId, Long artistId, Long contestId, String status) {
+        return new ContestEntry(entryId, artistId, contestId, entryId, "desc", "sample.jpg", status);
     }
 
     private Contest buildSubmissionContest(Long contestId) {

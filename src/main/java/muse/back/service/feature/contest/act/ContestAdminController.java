@@ -3,6 +3,7 @@ package muse.back.service.feature.contest.act;
 import auth.common.core.constant.UserRole;
 import auth.common.core.context.RequirePrincipalRole;
 import auth.common.core.context.UserContext;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import muse.back.service.database.pub.dto.AdminContestResponse;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import web.common.core.response.base.dto.ResponseDataDTO;
+import web.common.core.response.base.exception.GeneralException;
+import web.common.core.response.base.vo.Code;
 
 import java.util.List;
 
@@ -38,7 +41,7 @@ public class ContestAdminController {
 
     @PostMapping
     public ResponseDataDTO<AdminContestResponse> createContest(
-            @RequestBody AdminContestUpsertRequest request,
+            @Valid @RequestBody AdminContestUpsertRequest request,
             UserContext userContext
     ) {
         log.info("Create contest by admin");
@@ -48,7 +51,7 @@ public class ContestAdminController {
     @PutMapping("/{id}")
     public ResponseDataDTO<AdminContestResponse> updateContest(
             @PathVariable Long id,
-            @RequestBody AdminContestUpsertRequest request,
+            @Valid @RequestBody AdminContestUpsertRequest request,
             UserContext userContext
     ) {
         log.info("Update contest by admin: id={}", id);
@@ -58,10 +61,13 @@ public class ContestAdminController {
     @PostMapping("/{id}/finalize")
     public ResponseDataDTO<ContestFinalizeResponse> finalizeContest(
             @PathVariable Long id,
-            UserContext userContext
+        UserContext userContext
     ) {
         log.info("Finalize contest by admin: id={}", id);
-        return ResponseDataDTO.of(contestService.finalizeContestResults(id), "콘테스트 결과 확정 성공");
+        return ResponseDataDTO.of(
+                contestService.finalizeContestResults(id, requireUserKey(userContext)),
+                "콘테스트 결과 확정 성공"
+        );
     }
 
     @GetMapping("/{id}/entries")
@@ -77,7 +83,7 @@ public class ContestAdminController {
     public ResponseDataDTO<ContestPublicEntryResponse> updateEntryStatusForAdmin(
             @PathVariable Long id,
             @PathVariable String entryId,
-            @RequestBody AdminContestEntryStatusUpdateRequest request,
+            @Valid @RequestBody AdminContestEntryStatusUpdateRequest request,
             UserContext userContext
     ) {
         log.info("Update contest entry status by admin: contestId={}, entryId={}, status={}", id, entryId, request.status());
@@ -85,6 +91,13 @@ public class ContestAdminController {
                 contestService.updateAdminEntryStatus(id, entryId, request.status()),
                 "출품 상태 변경 성공"
         );
+    }
+
+    private String requireUserKey(UserContext userContext) {
+        if (userContext == null || userContext.getUserKey() == null || userContext.getUserKey().isBlank()) {
+            throw new GeneralException(Code.UNAUTHORIZED, "Login required");
+        }
+        return userContext.getUserKey();
     }
 
 }

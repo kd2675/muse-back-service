@@ -10,9 +10,9 @@ import java.util.Optional;
 public interface ProfileArtistRepository extends JpaRepository<ProfileArtist, Long> {
 
     Optional<ProfileArtist> findTopByOrderByArtistIdAsc();
-    Optional<ProfileArtist> findTopByOrderByArtistIdDesc();
-
     Optional<ProfileArtist> findByUserKey(String userKey);
 
     List<ProfileArtist> findByArtistIdIn(Collection<Long> artistIds);
+
+    List<ProfileArtist> findTop20ByNameContainingIgnoreCaseOrderByArtistIdAsc(String name);
 }

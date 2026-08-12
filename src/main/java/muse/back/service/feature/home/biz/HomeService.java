@@ -20,6 +20,8 @@ import muse.back.service.common.util.ImageFileUrlResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class HomeService {
 
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
+
     private final HomeHeroRepository homeHeroRepository;
     private final HomePickRepository homePickRepository;
     private final ArtworkRepository artworkRepository;
@@ -41,7 +45,7 @@ public class HomeService {
     private final ImageFileUrlResolver imageFileUrlResolver;
 
     public HomeResponse getHome() {
-        LocalDateTime currentTime = LocalDateTime.now();
+        LocalDateTime currentTime = LocalDateTime.now(SERVICE_ZONE);
         HomeResponse.Hero hero = homeHeroRepository.findTopByOrderByHomeHeroIdDesc()
                 .map(heroEntity -> new HomeResponse.Hero(
                         heroEntity.getBadge(),
@@ -72,10 +76,12 @@ public class HomeService {
                 .findAllById(featuredMuseumEntities.stream().map(Museum::getArtistId).toList())
                 .stream()
                 .collect(Collectors.toMap(ProfileArtist::getArtistId, ProfileArtist::getName));
+        Map<Long, List<MuseumArtwork>> visibleArtworkMap = loadVisibleArtworkMap(featuredMuseumEntities);
         List<HomeResponse.MuseumCard> featuredMuseums = featuredMuseumEntities.stream()
                 .map(museum -> toHomeMuseumCard(
                         museum,
-                        artistNameMap.getOrDefault(museum.getArtistId(), "Unknown Artist")
+                        artistNameMap.getOrDefault(museum.getArtistId(), "Unknown Artist"),
+                        visibleArtworkMap.getOrDefault(museum.getMuseumId(), List.of())
                 ))
                 .toList();
 
@@ -83,8 +89,8 @@ public class HomeService {
                 .findAllByOrderByContestIdAsc()
                 .stream()
                 .filter(contest -> !"ENDED".equals(resolveContestPhase(contest, currentTime)))
-                .sorted(Comparator.comparingInt(Contest::getDaysLeft))
-                .map(this::toHomeContestCard)
+                .sorted(Comparator.comparingInt(contest -> computeDaysLeft(contest.getVotingEndAt(), currentTime)))
+                .map(contest -> toHomeContestCard(contest, currentTime))
                 .toList();
 
         return new HomeResponse(hero, todaysPick, featuredMuseums, contests);
@@ -111,15 +117,17 @@ public class HomeService {
         );
     }
 
-    private HomeResponse.MuseumCard toHomeMuseumCard(Museum museum, String ownerName) {
-        List<MuseumArtwork> visibleArtworks =
-                museumArtworkRepository.findByMuseumIdAndModerationStatusOrderByMuseumArtworkIdDesc(
-                        museum.getMuseumId(),
-                        "VISIBLE"
-                );
+    private HomeResponse.MuseumCard toHomeMuseumCard(
+            Museum museum,
+            String ownerName,
+            List<MuseumArtwork> visibleArtworks
+    ) {
         String coverImageUrl = visibleArtworks.isEmpty()
                 ? null
-                : imageFileUrlResolver.resolveImageUrl(visibleArtworks.get(0).getFileName());
+                : imageFileUrlResolver.resolveImageUrl(
+                        visibleArtworks.get(0).getFileName(),
+                        visibleArtworks.get(0).getImageUrl()
+                );
         return new HomeResponse.MuseumCard(
                 museum.getMuseumId(),
                 museum.getName(),
@@ -129,15 +137,36 @@ public class HomeService {
         );
     }
 
-    private HomeResponse.ContestCard toHomeContestCard(Contest contest) {
+    private Map<Long, List<MuseumArtwork>> loadVisibleArtworkMap(List<Museum> museums) {
+        if (museums.isEmpty()) {
+            return Map.of();
+        }
+        return museumArtworkRepository
+                .findByMuseumIdInAndModerationStatusOrderByMuseumIdAscMuseumArtworkIdDesc(
+                        museums.stream().map(Museum::getMuseumId).toList(),
+                        "VISIBLE"
+                )
+                .stream()
+                .collect(Collectors.groupingBy(MuseumArtwork::getMuseumId));
+    }
+
+    private HomeResponse.ContestCard toHomeContestCard(Contest contest, LocalDateTime currentTime) {
         return new HomeResponse.ContestCard(
                 contest.getContestId(),
                 contest.getTheme(),
                 contest.getPeriod(),
                 contest.getEntryFee(),
                 contest.getPrizePool(),
-                contest.getDaysLeft()
+                computeDaysLeft(contest.getVotingEndAt(), currentTime)
         );
+    }
+
+    private int computeDaysLeft(LocalDateTime votingEndAt, LocalDateTime currentTime) {
+        if (votingEndAt == null) {
+            return 0;
+        }
+        long days = ChronoUnit.DAYS.between(currentTime.toLocalDate(), votingEndAt.toLocalDate());
+        return (int) Math.max(days, 0);
     }
 
     private String resolveCategoryLabel(Artwork artwork) {

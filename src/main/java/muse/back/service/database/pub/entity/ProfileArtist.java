@@ -2,6 +2,8 @@ package muse.back.service.database.pub.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -16,6 +18,7 @@ import muse.back.service.common.jpa.CommonDateEntity;
 public class ProfileArtist extends CommonDateEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "artist_id")
     private Long artistId;
 
@@ -37,5 +40,9 @@ public class ProfileArtist extends CommonDateEntity {
         this.name = name;
         this.tagline = tagline;
         this.profileColor = profileColor;
+    }
+
+    public ProfileArtist(String userKey, String name, String tagline, String profileColor) {
+        this(null, userKey, name, tagline, profileColor);
     }
 }

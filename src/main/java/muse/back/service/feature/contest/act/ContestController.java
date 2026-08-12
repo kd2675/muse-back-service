@@ -2,6 +2,7 @@ package muse.back.service.feature.contest.act;
 
 import auth.common.core.context.RequirePrincipalRole;
 import auth.common.core.context.UserContext;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import muse.back.service.feature.contest.biz.ContestService;
@@ -11,6 +12,7 @@ import muse.back.service.database.pub.dto.ContestEntryRequest;
 import muse.back.service.database.pub.dto.ContestPublicEntryPageResponse;
 import muse.back.service.database.pub.dto.ContestPublicEntryResponse;
 import muse.back.service.database.pub.dto.ContestRankingResponse;
+import muse.back.service.database.pub.dto.ContestResultResponse;
 import muse.back.service.database.pub.dto.ContestEntryResponse;
 import muse.back.service.database.pub.dto.ContestSummaryResponse;
 import muse.back.service.database.pub.dto.ContestVoteRequest;
@@ -73,6 +75,12 @@ public class ContestController {
         return ResponseDataDTO.of(contestService.getContestRanking(id), "콘테스트 랭킹 조회 성공");
     }
 
+    @GetMapping("/{id}/results")
+    public ResponseDataDTO<ContestResultResponse> getContestResult(@PathVariable Long id) {
+        log.info("Get contest result: id={}", id);
+        return ResponseDataDTO.of(contestService.getContestResult(id), "콘테스트 결과 조회 성공");
+    }
+
     @PostMapping("/{id}/entry-credits/purchase")
     @RequirePrincipalRole
     public ResponseDataDTO<ContestEntryCreditResponse> purchaseEntryCredit(
@@ -91,7 +99,7 @@ public class ContestController {
     @RequirePrincipalRole
     public ResponseDataDTO<ContestEntryResponse> submitEntry(
             @PathVariable Long id,
-            @RequestBody ContestEntryRequest request,
+            @Valid @RequestBody ContestEntryRequest request,
             UserContext userContext
     ) {
         String userKey = requireUserKey(userContext);
@@ -115,7 +123,7 @@ public class ContestController {
     @RequirePrincipalRole
     public ResponseDataDTO<ContestVoteResponse> voteEntry(
             @PathVariable Long id,
-            @RequestBody ContestVoteRequest request,
+            @Valid @RequestBody ContestVoteRequest request,
             UserContext userContext
     ) {
         String userKey = requireUserKey(userContext);

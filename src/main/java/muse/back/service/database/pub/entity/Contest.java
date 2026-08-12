@@ -2,6 +2,8 @@ package muse.back.service.database.pub.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
 public class Contest extends CommonDateEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "contest_id")
     private Long contestId;
 
@@ -52,6 +55,35 @@ public class Contest extends CommonDateEntity {
 
     @Column(name = "participation_count", nullable = false)
     private int participationCount;
+
+    public Contest(
+            String theme,
+            String description,
+            String period,
+            int entryFee,
+            int prizePool,
+            int daysLeft,
+            LocalDateTime submissionStartAt,
+            LocalDateTime submissionEndAt,
+            LocalDateTime votingStartAt,
+            LocalDateTime votingEndAt,
+            int participationCount
+    ) {
+        this(
+                null,
+                theme,
+                description,
+                period,
+                entryFee,
+                prizePool,
+                daysLeft,
+                submissionStartAt,
+                submissionEndAt,
+                votingStartAt,
+                votingEndAt,
+                participationCount
+        );
+    }
 
     public Contest(
             Long contestId,

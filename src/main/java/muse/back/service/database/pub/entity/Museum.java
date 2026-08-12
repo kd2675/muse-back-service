@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import muse.back.service.common.jpa.CommonDateEntity;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "museum")
 @Getter
@@ -37,6 +39,24 @@ public class Museum extends CommonDateEntity {
     @Column(name = "is_featured", nullable = false)
     private boolean isFeatured;
 
+    @Column(name = "publish_status", length = 20, nullable = false)
+    private String publishStatus;
+
+    @Column(name = "cover_artwork_id")
+    private Long coverArtworkId;
+
+    @Column(name = "opening_at")
+    private LocalDateTime openingAt;
+
+    @Column(name = "curator_note", length = 2000)
+    private String curatorNote;
+
+    @Column(name = "layout_preset", length = 30, nullable = false)
+    private String layoutPreset;
+
+    @Column(name = "lighting_preset", length = 30, nullable = false)
+    private String lightingPreset;
+
     public Museum(
             Long artistId,
             String name,
@@ -49,12 +69,14 @@ public class Museum extends CommonDateEntity {
         this.description = description;
         this.isPublic = isPublic;
         this.isFeatured = isFeatured;
+        this.publishStatus = isPublic ? "PUBLISHED" : "DRAFT";
+        this.layoutPreset = "SALON";
+        this.lightingPreset = "WARM";
     }
 
-    public void updateByOwner(String name, String description, boolean isPublic) {
+    public void updateMetadata(String name, String description) {
         this.name = name;
         this.description = description;
-        this.isPublic = isPublic;
     }
 
     public void updateFeatured(boolean isFeatured) {
@@ -63,5 +85,23 @@ public class Museum extends CommonDateEntity {
 
     public void updateVisibility(boolean isPublic) {
         this.isPublic = isPublic;
+        this.publishStatus = isPublic ? "PUBLISHED" : "DRAFT";
+    }
+
+    public void updateCuration(
+            String publishStatus,
+            Long coverArtworkId,
+            LocalDateTime openingAt,
+            String curatorNote,
+            String layoutPreset,
+            String lightingPreset
+    ) {
+        this.publishStatus = publishStatus;
+        this.isPublic = "PUBLISHED".equals(publishStatus) || "SCHEDULED".equals(publishStatus);
+        this.coverArtworkId = coverArtworkId;
+        this.openingAt = openingAt;
+        this.curatorNote = curatorNote;
+        this.layoutPreset = layoutPreset;
+        this.lightingPreset = lightingPreset;
     }
 }

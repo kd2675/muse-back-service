@@ -2,6 +2,7 @@ package muse.back.service.feature.gallery.act;
 
 import auth.common.core.context.RequirePrincipalRole;
 import auth.common.core.context.UserContext;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import muse.back.service.database.pub.dto.MyMuseumArtworkCreateRequest;
@@ -9,6 +10,9 @@ import muse.back.service.database.pub.dto.MyMuseumArtworkResponse;
 import muse.back.service.database.pub.dto.MyMuseumCreateRequest;
 import muse.back.service.database.pub.dto.MyMuseumResponse;
 import muse.back.service.database.pub.dto.MyMuseumUpdateRequest;
+import muse.back.service.database.pub.dto.MuseumArtworkReorderRequest;
+import muse.back.service.database.pub.dto.MuseumArtworkUpdateRequest;
+import muse.back.service.database.pub.dto.MuseumCurationUpdateRequest;
 import muse.back.service.feature.gallery.biz.MuseumService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,7 +45,7 @@ public class MyMuseumController {
 
     @PostMapping
     public ResponseDataDTO<MyMuseumResponse> createMyMuseum(
-            @RequestBody MyMuseumCreateRequest request,
+            @Valid @RequestBody MyMuseumCreateRequest request,
             UserContext userContext
     ) {
         String userKey = requireUserKey(userContext);
@@ -55,7 +59,7 @@ public class MyMuseumController {
     @PutMapping("/{museumId}")
     public ResponseDataDTO<MyMuseumResponse> updateMyMuseum(
             @PathVariable Long museumId,
-            @RequestBody MyMuseumUpdateRequest request,
+            @Valid @RequestBody MyMuseumUpdateRequest request,
             UserContext userContext
     ) {
         String userKey = requireUserKey(userContext);
@@ -63,6 +67,18 @@ public class MyMuseumController {
         return ResponseDataDTO.of(
                 museumService.updateMyMuseum(museumId, userKey, request),
                 "뮤지엄 수정 성공"
+        );
+    }
+
+    @PutMapping("/{museumId}/curation")
+    public ResponseDataDTO<MyMuseumResponse> updateCuration(
+            @PathVariable Long museumId,
+            @Valid @RequestBody MuseumCurationUpdateRequest request,
+            UserContext userContext
+    ) {
+        return ResponseDataDTO.of(
+                museumService.updateCuration(museumId, requireUserKey(userContext), request),
+                "뮤지엄 큐레이션 저장 성공"
         );
     }
 
@@ -92,7 +108,7 @@ public class MyMuseumController {
     @PostMapping("/{museumId}/artworks")
     public ResponseDataDTO<MyMuseumArtworkResponse> createMyMuseumArtwork(
             @PathVariable Long museumId,
-            @RequestBody MyMuseumArtworkCreateRequest request,
+            @Valid @RequestBody MyMuseumArtworkCreateRequest request,
             UserContext userContext
     ) {
         String userKey = requireUserKey(userContext);
@@ -118,6 +134,33 @@ public class MyMuseumController {
         );
         museumService.deleteMyMuseumArtwork(museumId, museumArtworkId, userKey);
         return ResponseDataDTO.of(null, "뮤지엄 작품 삭제 성공");
+    }
+
+    @PutMapping("/{museumId}/artworks/{museumArtworkId}")
+    public ResponseDataDTO<MyMuseumArtworkResponse> updateMyMuseumArtwork(
+            @PathVariable Long museumId,
+            @PathVariable Long museumArtworkId,
+            @Valid @RequestBody MuseumArtworkUpdateRequest request,
+            UserContext userContext
+    ) {
+        return ResponseDataDTO.of(
+                museumService.updateMyMuseumArtwork(
+                        museumId, museumArtworkId, requireUserKey(userContext), request
+                ),
+                "뮤지엄 작품 큐레이션 저장 성공"
+        );
+    }
+
+    @PutMapping("/{museumId}/artworks/order")
+    public ResponseDataDTO<List<MyMuseumArtworkResponse>> reorderMyMuseumArtworks(
+            @PathVariable Long museumId,
+            @Valid @RequestBody MuseumArtworkReorderRequest request,
+            UserContext userContext
+    ) {
+        return ResponseDataDTO.of(
+                museumService.reorderMyMuseumArtworks(museumId, requireUserKey(userContext), request),
+                "뮤지엄 작품 순서 저장 성공"
+        );
     }
 
     private String requireUserKey(UserContext userContext) {

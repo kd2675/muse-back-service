@@ -68,4 +68,8 @@ public class ProfileStat extends CommonDateEntity {
             this.totalWorks = Math.max(0, this.totalWorks - amount);
         }
     }
+
+    public void updateFollowers(int followers) {
+        this.followers = Math.max(0, followers);
+    }
 }

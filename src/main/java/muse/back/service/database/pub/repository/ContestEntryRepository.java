@@ -32,4 +32,9 @@ public interface ContestEntryRepository extends JpaRepository<ContestEntry, Stri
     Optional<ContestEntry> findByEntryIdAndContestId(String entryId, Long contestId);
 
     Optional<ContestEntry> findByEntryIdAndArtistId(String entryId, Long artistId);
+
+    List<ContestEntry> findTop20ByTitleContainingIgnoreCaseAndStatusInOrderByCreateDateDesc(
+            String title,
+            Collection<String> statuses
+    );
 }

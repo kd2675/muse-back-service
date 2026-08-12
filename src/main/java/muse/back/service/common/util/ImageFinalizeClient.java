@@ -9,18 +9,29 @@ import web.common.core.response.base.vo.Code;
 
 @Component
 public class ImageFinalizeClient {
-    private final RestClient restClient;
+    private static final String INTERNAL_TOKEN_HEADER = "X-Internal-File-Token";
 
-    public ImageFinalizeClient(@Value("${integration.image.base-url:http://localhost:8081}") String imageBaseUrl) {
+    private final RestClient restClient;
+    private final String internalToken;
+
+    public ImageFinalizeClient(
+            @Value("${integration.image.base-url:http://localhost:8081}") String imageBaseUrl,
+            @Value("${integration.image.internal-token}") String internalToken
+    ) {
+        if (internalToken == null || internalToken.isBlank()) {
+            throw new IllegalStateException("integration.image.internal-token must be configured");
+        }
         this.restClient = RestClient.builder()
                 .baseUrl(imageBaseUrl)
                 .build();
+        this.internalToken = internalToken;
     }
 
     public FinalizedImage finalizeImage(String fileName, String targetDir) {
         try {
             FinalizedImage response = restClient.post()
                     .uri("/files/finalize")
+                    .header(INTERNAL_TOKEN_HEADER, internalToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(new FinalizeImageRequest(fileName, targetDir))
                     .retrieve()
@@ -34,6 +45,21 @@ public class ImageFinalizeClient {
             throw ex;
         } catch (Exception ex) {
             throw new GeneralException(Code.INTERNAL_SERVER_ERROR, "Failed to finalize uploaded image");
+        }
+    }
+
+    public void deleteImage(String fileName) {
+        try {
+            restClient.delete()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/internal/images/finalized")
+                            .queryParam("fileName", fileName)
+                            .build())
+                    .header(INTERNAL_TOKEN_HEADER, internalToken)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception ex) {
+            throw new GeneralException(Code.INTERNAL_SERVER_ERROR, "Failed to delete finalized image");
         }
     }
 

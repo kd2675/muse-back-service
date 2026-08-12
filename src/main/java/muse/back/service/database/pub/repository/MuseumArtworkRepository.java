@@ -5,15 +5,35 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface MuseumArtworkRepository extends JpaRepository<MuseumArtwork, Long> {
 
     List<MuseumArtwork> findByMuseumIdOrderByMuseumArtworkIdDesc(Long museumId);
 
+    List<MuseumArtwork> findByMuseumIdOrderBySortOrderAscMuseumArtworkIdAsc(Long museumId);
+
     List<MuseumArtwork> findByMuseumIdAndModerationStatusOrderByMuseumArtworkIdDesc(
             Long museumId,
             String moderationStatus
     );
+
+    List<MuseumArtwork> findByMuseumIdAndModerationStatusOrderBySortOrderAscMuseumArtworkIdAsc(
+            Long museumId,
+            String moderationStatus
+    );
+
+    List<MuseumArtwork> findTop20ByModerationStatusAndTitleContainingIgnoreCaseOrderByMuseumArtworkIdDesc(
+            String moderationStatus,
+            String title
+    );
+
+    List<MuseumArtwork> findByMuseumIdInAndModerationStatusOrderByMuseumIdAscMuseumArtworkIdDesc(
+            Collection<Long> museumIds,
+            String moderationStatus
+    );
+
+    List<MuseumArtwork> findByMuseumIdIn(Collection<Long> museumIds);
 
     long countByMuseumId(Long museumId);
 

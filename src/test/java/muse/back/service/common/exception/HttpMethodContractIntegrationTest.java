@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -51,5 +52,34 @@ class HttpMethodContractIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value(4040000));
+    }
+
+    @Test
+    void submitEntry_invalidPayload_returnsWrappedValidationError() throws Exception {
+        mockMvc.perform(post("/api/muse/v1/contests/101/entries")
+                        .header("X-User-Key", "muse-user-key")
+                        .header("X-User-Role", "USER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "",
+                                  "description": "invalid dimensions",
+                                  "fileName": "sample.jpg",
+                                  "fileSizeBytes": 1024,
+                                  "imageWidthPx": 1200,
+                                  "imageHeightPx": 800
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value(4000300));
+    }
+
+    @Test
+    void paymentWebhook_missingData_returnsValidationError() throws Exception {
+        mockMvc.perform(post("/api/muse/v1/payments/webhooks/toss")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
     }
 }

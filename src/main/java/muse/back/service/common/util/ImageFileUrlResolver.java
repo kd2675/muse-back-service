@@ -30,6 +30,11 @@ public class ImageFileUrlResolver {
         return imageBaseUrl + "/images/" + normalized;
     }
 
+    public String resolveImageUrl(String fileName, String imageUrl) {
+        String resolvedImageUrl = resolveImageUrl(imageUrl);
+        return resolvedImageUrl != null ? resolvedImageUrl : resolveImageUrl(fileName);
+    }
+
     private String normalizeBaseUrl(String value) {
         if (value.endsWith("/")) {
             return value.substring(0, value.length() - 1);

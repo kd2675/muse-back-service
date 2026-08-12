@@ -6,6 +6,7 @@ import muse.back.service.database.pub.dto.AdminContestUpsertRequest;
 import muse.back.service.database.pub.dto.ContestDetailResponse;
 import muse.back.service.database.pub.dto.ContestEntryCreditResponse;
 import muse.back.service.database.pub.dto.ContestFinalizeResponse;
+import muse.back.service.database.pub.dto.ContestResultResponse;
 import muse.back.service.database.pub.dto.ContestPublicEntryPageResponse;
 import muse.back.service.database.pub.dto.ContestPublicEntryResponse;
 import muse.back.service.database.pub.dto.ContestRankingResponse;
@@ -19,20 +20,26 @@ import muse.back.service.database.pub.entity.ContestEntryCredit;
 import muse.back.service.database.pub.entity.ContestEntryLedger;
 import muse.back.service.database.pub.entity.Contest;
 import muse.back.service.database.pub.entity.ContestRule;
+import muse.back.service.database.pub.entity.ContestResult;
 import muse.back.service.database.pub.entity.ProfileArtist;
 import muse.back.service.database.pub.entity.ProfileAward;
 import muse.back.service.database.pub.entity.ProfileStat;
 import muse.back.service.database.pub.repository.ContestEntryCreditRepository;
 import muse.back.service.database.pub.repository.ContestEntryLedgerRepository;
+import muse.back.service.database.pub.repository.ContestEntryDraftRepository;
 import muse.back.service.database.pub.repository.ContestEntryRepository;
 import muse.back.service.database.pub.repository.ContestRepository;
+import muse.back.service.database.pub.repository.ContestResultRepository;
 import muse.back.service.database.pub.repository.ContestRuleRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import muse.back.service.database.pub.repository.ProfileAwardRepository;
 import muse.back.service.database.pub.repository.ProfileStatRepository;
 import muse.back.service.common.util.ImageFileUrlResolver;
 import muse.back.service.common.util.ImageFinalizeClient;
+import muse.back.service.common.util.ImageCleanupService;
+import muse.back.service.feature.notification.biz.NotificationService;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -74,7 +81,6 @@ public class ContestService {
     private static final String PHASE_REVIEW = "REVIEW";
     private static final String PHASE_VOTING = "VOTING";
     private static final String PHASE_ENDED = "ENDED";
-    private static final Set<String> FINALIZED_STATUSES = Set.of(STATUS_APPROVED, STATUS_REJECTED);
     private static final Set<String> ADMIN_REVIEWABLE_STATUSES = Set.of(STATUS_APPROVED, STATUS_REJECTED);
     private static final long MAX_FILE_SIZE_BYTES = 100L * 1024L * 1024L;
     private static final int MIN_IMAGE_RESOLUTION_PX = 3000;
@@ -84,15 +90,22 @@ public class ContestService {
     private static final String CONTEST_IMAGE_TARGET_DIR = "muse/contest/entries";
 
     private final ContestRepository contestRepository;
+    private final ContestResultRepository contestResultRepository;
     private final ContestRuleRepository contestRuleRepository;
     private final ContestEntryRepository contestEntryRepository;
     private final ContestEntryCreditRepository contestEntryCreditRepository;
     private final ContestEntryLedgerRepository contestEntryLedgerRepository;
+    private final ContestEntryDraftRepository contestEntryDraftRepository;
     private final ProfileArtistRepository profileArtistRepository;
     private final ProfileAwardRepository profileAwardRepository;
     private final ProfileStatRepository profileStatRepository;
     private final ImageFinalizeClient imageFinalizeClient;
     private final ImageFileUrlResolver imageFileUrlResolver;
+    private final ImageCleanupService imageCleanupService;
+    private final NotificationService notificationService;
+
+    @Value("${muse.payment.test-credit-enabled:false}")
+    private boolean testCreditEnabled;
 
     public List<ContestSummaryResponse> getActiveContests() {
         LocalDateTime currentTime = now();
@@ -115,12 +128,8 @@ public class ContestService {
     @Transactional
     public AdminContestResponse createContest(AdminContestUpsertRequest request) {
         validateAdminContestRequest(request);
-        Long contestId = contestRepository.findTopByOrderByContestIdDesc()
-                .map(contest -> contest.getContestId() + 1)
-                .orElse(1L);
         LocalDateTime now = now();
         Contest contest = new Contest(
-                contestId,
                 request.theme().trim(),
                 emptyToNull(request.description()),
                 buildPeriodText(request.submissionStartAt(), request.votingEndAt()),
@@ -133,9 +142,9 @@ public class ContestService {
                 request.votingEndAt(),
                 0
         );
-        contestRepository.save(contest);
-        replaceContestRules(contestId, request.rules());
-        return toAdminContestResponse(contest, now);
+        Contest savedContest = contestRepository.save(contest);
+        replaceContestRules(savedContest.getContestId(), request.rules());
+        return toAdminContestResponse(savedContest, now);
     }
 
     @Transactional
@@ -161,34 +170,26 @@ public class ContestService {
     }
 
     @Transactional
-    public ContestFinalizeResponse finalizeContestResults(Long contestId) {
-        Contest contest = getContestOrThrow(contestId);
-        String phase = resolveContestPhase(contest, now());
+    public ContestFinalizeResponse finalizeContestResults(Long contestId, String adminUserKey) {
+        requireNonBlank(adminUserKey, "Admin user key is required");
+        Contest contest = getContestForUpdateOrThrow(contestId);
+        LocalDateTime finalizedAt = now();
+        String phase = resolveContestPhase(contest, finalizedAt);
         if (!PHASE_ENDED.equals(phase)) {
             throw new GeneralException(Code.CONFLICT, "Voting period has not ended");
         }
-        boolean alreadyFinalized = contestEntryRepository.existsByContestIdAndStatusIn(
-                contestId,
-                FINALIZED_STATUSES
-        );
-        if (alreadyFinalized) {
+        if (contestResultRepository.existsById(contestId)) {
             throw new GeneralException(Code.CONFLICT, "Contest results already finalized");
         }
 
-        List<ContestEntry> entries = contestEntryRepository
-                .findByContestIdAndStatusIn(contestId, ENTRY_VISIBLE_STATUSES);
-        if (entries.isEmpty()) {
-            return new ContestFinalizeResponse(
-                    contestId,
-                    PHASE_ENDED,
-                    now(),
-                    List.of()
-            );
-        }
+        List<ContestEntry> entries = contestEntryRepository.findByContestIdOrderByCreateDateDesc(contestId);
+        List<ContestEntry> eligibleEntries = entries.stream()
+                .filter(entry -> STATUS_APPROVED.equals(entry.getStatus()))
+                .toList();
 
         Map<String, Long> voteCounts = countVotesBySelectedEntry(contestId);
-        Map<Long, String> artistNamesById = resolveArtistNames(entries);
-        List<ContestEntry> sorted = entries.stream()
+        Map<Long, String> artistNamesById = resolveArtistNames(eligibleEntries);
+        List<ContestEntry> sorted = eligibleEntries.stream()
                 .sorted(Comparator
                         .comparingLong((ContestEntry entry) -> voteCounts.getOrDefault(entry.getEntryId(), 0L))
                         .reversed()
@@ -198,9 +199,6 @@ public class ContestService {
 
         int winnerCount = Math.min(3, sorted.size());
         List<Integer> prizes = splitPrizePool(contest.getPrizePool(), winnerCount);
-        long nextAwardId = profileAwardRepository.findTopByOrderByAwardIdDesc()
-                .map(award -> award.getAwardId() + 1L)
-                .orElse(1L);
         List<ContestFinalizeResponse.Winner> winners = new ArrayList<>();
 
         for (int index = 0; index < sorted.size(); index++) {
@@ -208,23 +206,16 @@ public class ContestService {
             if (index < winnerCount) {
                 int rank = index + 1;
                 int prize = prizes.get(index);
-                entry.updateStatus(STATUS_APPROVED);
                 profileAwardRepository.save(new ProfileAward(
-                        nextAwardId++,
                         entry.getArtistId(),
+                        contestId,
+                        entry.getEntryId(),
                         contest.getTheme(),
                         toRankLabel(rank),
                         toPrizeText(prize),
                         toAwardPeriod(contest.getVotingEndAt())
                 ));
-                ProfileStat stat = profileStatRepository.findByArtistId(entry.getArtistId())
-                        .orElseGet(() -> profileStatRepository.save(new ProfileStat(
-                                entry.getArtistId(),
-                                0,
-                                0,
-                                0,
-                                0
-                        )));
+                ProfileStat stat = findOrCreateProfileStat(entry.getArtistId());
                 stat.addAwards(1);
                 stat.addEarnings(prize);
                 profileStatRepository.save(stat);
@@ -236,17 +227,31 @@ public class ContestService {
                         voteCounts.getOrDefault(entry.getEntryId(), 0L),
                         prize
                 ));
+                notificationService.create(
+                        entry.getArtistId(),
+                        "CONTEST_AWARD",
+                        contest.getTheme() + " 수상 결과가 발표되었습니다",
+                        rank + "위로 선정되었습니다. 수상작과 심사 결과를 확인해 보세요.",
+                        "/contest/" + contestId + "/results",
+                        "CONTEST_AWARD:" + contestId + ":" + entry.getEntryId()
+                );
             } else {
                 entry.updateStatus(STATUS_REJECTED);
             }
         }
 
-        contestEntryRepository.saveAll(sorted);
+        entries.stream()
+                .filter(entry -> STATUS_SUBMITTED.equals(entry.getStatus()))
+                .forEach(entry -> entry.updateStatus(STATUS_REJECTED));
+        if (!entries.isEmpty()) {
+            contestEntryRepository.saveAll(entries);
+        }
+        contestResultRepository.save(new ContestResult(contestId, finalizedAt, adminUserKey));
 
         return new ContestFinalizeResponse(
                 contestId,
                 PHASE_ENDED,
-                now(),
+                finalizedAt,
                 winners
         );
     }
@@ -275,6 +280,49 @@ public class ContestService {
                 contest.getVotingEndAt(),
                 resolveParticipationCount(contest.getContestId()),
                 rules
+        );
+    }
+
+    public ContestResultResponse getContestResult(Long contestId) {
+        Contest contest = getContestOrThrow(contestId);
+        ContestResult result = contestResultRepository.findById(contestId)
+                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Contest result not found"));
+        List<ProfileAward> awards = profileAwardRepository.findByContestIdOrderByAwardIdAsc(contestId);
+        Map<String, ContestEntry> entriesById = contestEntryRepository.findAllById(
+                        awards.stream().map(ProfileAward::getEntryId).filter(java.util.Objects::nonNull).toList()
+                ).stream()
+                .collect(java.util.stream.Collectors.toMap(ContestEntry::getEntryId, entry -> entry));
+        Map<Long, String> artistNames = profileArtistRepository.findAllById(
+                        awards.stream().map(ProfileAward::getArtistId).distinct().toList()
+                ).stream()
+                .collect(java.util.stream.Collectors.toMap(ProfileArtist::getArtistId, ProfileArtist::getName));
+
+        List<ContestResultResponse.Winner> winners = awards.stream()
+                .sorted(Comparator.comparingInt(award -> parseRank(award.getRankLabel())))
+                .map(award -> {
+                    ContestEntry entry = entriesById.get(award.getEntryId());
+                    if (entry == null) {
+                        throw new GeneralException(Code.NOT_FOUND, "Awarded contest entry not found");
+                    }
+                    return new ContestResultResponse.Winner(
+                            parseRank(award.getRankLabel()),
+                            entry.getEntryId(),
+                            entry.getTitle(),
+                            entry.getDescription(),
+                            imageFileUrlResolver.resolveImageUrl(entry.getFileName(), entry.getImageUrl()),
+                            award.getArtistId(),
+                            artistNames.getOrDefault(award.getArtistId(), "Unknown Artist"),
+                            award.getPrize()
+                    );
+                })
+                .toList();
+        return new ContestResultResponse(
+                contestId,
+                contest.getTheme(),
+                contest.getPeriod(),
+                contest.getPrizePool(),
+                result.getFinalizedAt(),
+                winners
         );
     }
 
@@ -331,54 +379,68 @@ public class ContestService {
             Integer imageHeightPx
     ) {
         Long artistId = resolveArtistId(userKey);
-        Contest contest = getContestOrThrow(contestId);
+        Contest contest = getContestForUpdateOrThrow(contestId);
         ensureSubmissionPhase(contest);
         if (fileName == null || fileName.isBlank()) {
             throw new GeneralException(Code.VALIDATION_ERROR, "File name is required");
         }
         validateUploadedFile(fileName, fileSizeBytes, imageWidthPx, imageHeightPx);
-        String finalizedFileName = imageFinalizeClient.finalizeImage(fileName, CONTEST_IMAGE_TARGET_DIR).fileName();
-        String entryId = generateEntryId(contestId);
-        consumeEntryCredit(contestId, artistId);
-
-        ContestEntry entry = new ContestEntry(
-                entryId,
-                artistId,
-                contestId,
-                title,
-                description,
-                finalizedFileName,
-                STATUS_SUBMITTED
+        ImageFinalizeClient.FinalizedImage finalizedImage = imageFinalizeClient.finalizeImage(
+                fileName,
+                CONTEST_IMAGE_TARGET_DIR
         );
-        contest.increaseParticipationCount();
-        contestRepository.save(contest);
-        contestEntryRepository.save(entry);
-        contestEntryLedgerRepository.save(new ContestEntryLedger(
-                artistId,
-                contestId,
-                -1,
-                "SUBMIT",
-                entryId
-        ));
-        ProfileStat profileStat = findOrCreateProfileStat(artistId);
-        profileStat.addWorks(1);
-        profileStatRepository.save(profileStat);
+        String finalizedFileName = finalizedImage.fileName();
+        try {
+            String entryId = generateEntryId(contestId);
+            consumeEntryCredit(contestId, artistId);
 
-        return new ContestEntryResponse(
-                contestId,
-                entryId,
-                title,
-                description,
-                finalizedFileName,
-                imageFileUrlResolver.resolveImageUrl(finalizedFileName),
-                STATUS_SUBMITTED
-        );
+            ContestEntry entry = new ContestEntry(
+                    entryId,
+                    artistId,
+                    contestId,
+                    title,
+                    description,
+                    finalizedFileName,
+                    toPortableImagePath(finalizedFileName),
+                    STATUS_SUBMITTED
+            );
+            contest.increaseParticipationCount();
+            contestRepository.save(contest);
+            contestEntryRepository.save(entry);
+            contestEntryLedgerRepository.save(new ContestEntryLedger(
+                    artistId,
+                    contestId,
+                    -1,
+                    "SUBMIT",
+                    entryId
+            ));
+            ProfileStat profileStat = findOrCreateProfileStat(artistId);
+            profileStat.addWorks(1);
+            profileStatRepository.save(profileStat);
+            contestEntryDraftRepository.deleteByArtistIdAndContestId(artistId, contestId);
+
+            return new ContestEntryResponse(
+                    contestId,
+                    entryId,
+                    title,
+                    description,
+                    finalizedFileName,
+                    imageFileUrlResolver.resolveImageUrl(finalizedFileName, toPortableImagePath(finalizedFileName)),
+                    STATUS_SUBMITTED
+            );
+        } catch (RuntimeException exception) {
+            imageCleanupService.enqueueCompensation(finalizedFileName, "CONTEST_SUBMIT_ROLLBACK");
+            throw exception;
+        }
     }
 
     @Transactional
     public ContestEntryCreditResponse purchaseEntryCredit(Long contestId, String userKey) {
+        if (!testCreditEnabled) {
+            throw new GeneralException(Code.FORBIDDEN, "Direct credit purchase is disabled; use payment checkout");
+        }
         Long artistId = resolveArtistId(userKey);
-        Contest contest = getContestOrThrow(contestId);
+        Contest contest = getContestForUpdateOrThrow(contestId);
         ensureSubmissionPhase(contest);
         ContestEntryCredit credit = getOrCreateEntryCreditForUpdate(contestId, artistId);
         credit.increase(1);
@@ -392,6 +454,48 @@ public class ContestService {
         ));
         int credits = credit.getBalance();
         return new ContestEntryCreditResponse(contestId, credits, "AVAILABLE");
+    }
+
+    @Transactional
+    public ContestEntryCreditResponse grantPaidEntryCredit(Long contestId, Long artistId, String orderId) {
+        getContestOrThrow(contestId);
+        String refId = "ORDER:" + orderId;
+        if (contestEntryLedgerRepository.existsByArtistIdAndContestIdAndReasonAndRefId(
+                artistId, contestId, "PAYMENT", refId
+        )) {
+            int balance = contestEntryCreditRepository.findByArtistIdAndContestId(artistId, contestId)
+                    .map(ContestEntryCredit::getBalance).orElse(0);
+            return new ContestEntryCreditResponse(contestId, balance, balance > 0 ? "AVAILABLE" : "NONE");
+        }
+        ContestEntryCredit credit = getOrCreateEntryCreditForUpdate(contestId, artistId);
+        credit.increase(1);
+        contestEntryCreditRepository.save(credit);
+        contestEntryLedgerRepository.save(new ContestEntryLedger(artistId, contestId, 1, "PAYMENT", refId));
+        return new ContestEntryCreditResponse(contestId, credit.getBalance(), "AVAILABLE");
+    }
+
+    @Transactional
+    public void revokePaidEntryCredit(Long contestId, Long artistId, String orderId) {
+        String refId = "ORDER:" + orderId;
+        if (!contestEntryLedgerRepository.existsByArtistIdAndContestIdAndReasonAndRefId(
+                artistId, contestId, "PAYMENT", refId
+        )) {
+            throw new GeneralException(Code.CONFLICT, "Payment credit was not granted");
+        }
+        if (contestEntryLedgerRepository.existsByArtistIdAndContestIdAndReasonAndRefId(
+                artistId, contestId, "PAYMENT_REFUND", refId
+        )) {
+            return;
+        }
+        ContestEntryCredit credit = getOrCreateEntryCreditForUpdate(contestId, artistId);
+        if (credit.getBalance() <= 0) {
+            throw new GeneralException(Code.CONFLICT, "Used entry credit cannot be refunded");
+        }
+        credit.decrease(1);
+        contestEntryCreditRepository.save(credit);
+        contestEntryLedgerRepository.save(new ContestEntryLedger(
+                artistId, contestId, -1, "PAYMENT_REFUND", refId
+        ));
     }
 
     @Transactional
@@ -471,7 +575,7 @@ public class ContestService {
                     index + 1,
                     entry.getEntryId(),
                     entry.getTitle(),
-                    imageFileUrlResolver.resolveImageUrl(entry.getFileName()),
+                    resolveEntryImageUrl(entry),
                     artistNamesById.getOrDefault(entry.getArtistId(), "Unknown Artist"),
                     voteCounts.getOrDefault(entry.getEntryId(), 0L)
             ));
@@ -511,6 +615,14 @@ public class ContestService {
         String normalized = normalizeAdminEntryStatus(status);
         entry.updateStatus(normalized);
         contestEntryRepository.save(entry);
+        notificationService.create(
+                entry.getArtistId(),
+                "ENTRY_REVIEW",
+                "출품 심사 상태가 변경되었습니다",
+                entry.getTitle() + " 작품이 " + (STATUS_APPROVED.equals(normalized) ? "승인" : "반려") + "되었습니다.",
+                "/contest/" + contestId,
+                "ENTRY_REVIEW:" + entryId + ":" + normalized
+        );
 
         String artistName = profileArtistRepository.findById(entry.getArtistId())
                 .map(ProfileArtist::getName)
@@ -520,7 +632,7 @@ public class ContestService {
                 entry.getEntryId(),
                 entry.getContestId(),
                 entry.getTitle(),
-                imageFileUrlResolver.resolveImageUrl(entry.getFileName()),
+                resolveEntryImageUrl(entry),
                 artistName,
                 entry.getStatus(),
                 formatSubmittedAt(entry)
@@ -600,9 +712,10 @@ public class ContestService {
         }
 
         Long contestId = entry.getContestId();
-        Contest contest = getContestOrThrow(contestId);
+        Contest contest = getContestForUpdateOrThrow(contestId);
         ensureSubmissionPhase(contest);
         contestEntryRepository.delete(entry);
+        imageCleanupService.enqueue(entry.getFileName(), "CONTEST_ENTRY_DELETED");
 
         // 출품 취소 시 참여 카운트를 되돌림
         contest.decreaseParticipationCount();
@@ -632,7 +745,7 @@ public class ContestService {
                 entry.getContestId(),
                 theme,
                 entry.getTitle(),
-                imageFileUrlResolver.resolveImageUrl(entry.getFileName()),
+                resolveEntryImageUrl(entry),
                 entry.getStatus(),
                 formatSubmittedAt(entry)
         );
@@ -645,7 +758,7 @@ public class ContestService {
                         entry.getEntryId(),
                         entry.getContestId(),
                         entry.getTitle(),
-                        imageFileUrlResolver.resolveImageUrl(entry.getFileName()),
+                        resolveEntryImageUrl(entry),
                         artistNamesById.getOrDefault(entry.getArtistId(), "Unknown Artist"),
                         entry.getStatus(),
                         formatSubmittedAt(entry)
@@ -760,7 +873,7 @@ public class ContestService {
     }
 
     private ProfileStat findOrCreateProfileStat(Long artistId) {
-        return profileStatRepository.findByArtistId(artistId)
+        return profileStatRepository.findByArtistIdForUpdate(artistId)
                 .orElseGet(() -> profileStatRepository.save(new ProfileStat(
                         artistId,
                         0,
@@ -1004,6 +1117,23 @@ public class ContestService {
                 ));
     }
 
+    private Contest getContestForUpdateOrThrow(Long contestId) {
+        return contestRepository.findByIdForUpdate(contestId)
+                .orElseThrow(() -> new GeneralException(
+                        Code.NOT_FOUND,
+                        String.format("Contest not found with id: '%s'", contestId)
+                ));
+    }
+
+    private String resolveEntryImageUrl(ContestEntry entry) {
+        return imageFileUrlResolver.resolveImageUrl(entry.getFileName(), entry.getImageUrl());
+    }
+
+    private String toPortableImagePath(String fileName) {
+        String normalized = fileName.startsWith("/") ? fileName.substring(1) : fileName;
+        return "/images/" + normalized;
+    }
+
     private void ensureSubmissionPhase(Contest contest) {
         String phase = resolveContestPhase(contest, now());
         if (!PHASE_SUBMISSION.equals(phase)) {
@@ -1058,6 +1188,21 @@ public class ContestService {
 
     private LocalDateTime now() {
         return LocalDateTime.now(SERVICE_ZONE);
+    }
+
+    private int parseRank(String rankLabel) {
+        if (rankLabel == null) {
+            return Integer.MAX_VALUE;
+        }
+        String digits = rankLabel.replaceAll("\\D", "");
+        if (digits.isBlank()) {
+            return Integer.MAX_VALUE;
+        }
+        try {
+            return Integer.parseInt(digits);
+        } catch (NumberFormatException exception) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     private Long resolveArtistId(String userKey) {

@@ -11,6 +11,7 @@ import muse.back.service.database.pub.repository.ProfileAwardRepository;
 import muse.back.service.database.pub.repository.ProfilePortfolioRepository;
 import muse.back.service.database.pub.repository.ProfileStatRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -68,32 +69,30 @@ public class ProfileService {
         );
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public ProfileSummaryResponse initializeProfile(String userKey, String userName) {
         ProfileArtist artist = profileArtistRepository.findByUserKey(userKey)
                 .orElseGet(() -> {
-                    Long artistId = nextArtistId();
                     String resolvedName =
                             (userName != null && !userName.isBlank())
                                     ? userName
                                     : "Artist " + userKey;
                     ProfileArtist created = new ProfileArtist(
-                            artistId,
                             userKey,
                             resolvedName,
                             "새로운 아티스트",
                             "#2B2A28"
                     );
-                    profileArtistRepository.save(created);
+                    ProfileArtist savedArtist = profileArtistRepository.save(created);
                     ProfileStat stat = new ProfileStat(
-                            created.getArtistId(),
+                            savedArtist.getArtistId(),
                             0,
                             0,
                             0,
                             0
                     );
                     profileStatRepository.save(stat);
-                    return created;
+                    return savedArtist;
                 });
 
         ProfileStat stat = profileStatRepository.findByArtistId(artist.getArtistId())
@@ -123,12 +122,6 @@ public class ProfileService {
                 portfolio,
                 awards
         );
-    }
-
-    private Long nextArtistId() {
-        return profileArtistRepository.findTopByOrderByArtistIdDesc()
-                .map(artist -> artist.getArtistId() + 1L)
-                .orElse(1L);
     }
 
     private ProfileSummaryResponse.Artist toArtist(ProfileArtist artist) {

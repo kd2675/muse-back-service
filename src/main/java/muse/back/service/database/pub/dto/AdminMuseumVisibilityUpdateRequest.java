@@ -1,6 +1,8 @@
 package muse.back.service.database.pub.dto;
 
+import jakarta.validation.constraints.NotNull;
+
 public record AdminMuseumVisibilityUpdateRequest(
-        Boolean isPublic
+        @NotNull Boolean isPublic
 ) {
 }

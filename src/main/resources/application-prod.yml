@@ -1,6 +1,14 @@
 server:
   port: 10280
 
+muse:
+  cors:
+    allowed-origins: ${MUSE_CORS_ALLOWED_ORIGINS}
+
+integration:
+  image:
+    internal-token: ${ATTACHMENT_INTERNAL_TOKEN}
+
 eureka:
   client:
     service-url:

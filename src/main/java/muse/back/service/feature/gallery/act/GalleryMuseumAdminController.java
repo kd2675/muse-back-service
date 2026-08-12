@@ -3,6 +3,7 @@ package muse.back.service.feature.gallery.act;
 import auth.common.core.constant.UserRole;
 import auth.common.core.context.RequirePrincipalRole;
 import auth.common.core.context.UserContext;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import muse.back.service.database.pub.dto.AdminMuseumArtworkModerationUpdateRequest;
@@ -39,7 +40,7 @@ public class GalleryMuseumAdminController {
     @PutMapping("/{museumId}/featured")
     public ResponseDataDTO<AdminMuseumResponse> updateMuseumFeatured(
             @PathVariable Long museumId,
-            @RequestBody AdminMuseumFeatureUpdateRequest request,
+            @Valid @RequestBody AdminMuseumFeatureUpdateRequest request,
             UserContext userContext
     ) {
         log.info("Update museum featured by admin: museumId={}", museumId);
@@ -52,7 +53,7 @@ public class GalleryMuseumAdminController {
     @PutMapping("/{museumId}/visibility")
     public ResponseDataDTO<AdminMuseumResponse> updateMuseumVisibility(
             @PathVariable Long museumId,
-            @RequestBody AdminMuseumVisibilityUpdateRequest request,
+            @Valid @RequestBody AdminMuseumVisibilityUpdateRequest request,
             UserContext userContext
     ) {
         log.info("Update museum visibility by admin: museumId={}", museumId);
@@ -77,7 +78,7 @@ public class GalleryMuseumAdminController {
     public ResponseDataDTO<AdminMuseumArtworkResponse> updateMuseumArtworkModeration(
             @PathVariable Long museumId,
             @PathVariable Long museumArtworkId,
-            @RequestBody AdminMuseumArtworkModerationUpdateRequest request,
+            @Valid @RequestBody AdminMuseumArtworkModerationUpdateRequest request,
             UserContext userContext
     ) {
         log.info("Update museum artwork moderation by admin: museumId={}, museumArtworkId={}", museumId, museumArtworkId);

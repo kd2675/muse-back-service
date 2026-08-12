@@ -89,4 +89,14 @@ management:
 
 integration:
   image:
-    base-url: http://localhost:8081
+    base-url: ${IMAGE_BACK_BASE_URL:http://localhost:8081}
+    internal-token: ${ATTACHMENT_INTERNAL_TOKEN:local-semo-attachment-token}
+
+muse:
+  payment:
+    test-credit-enabled: false
+    toss:
+      enabled: ${MUSE_TOSS_ENABLED:false}
+      client-key: ${MUSE_TOSS_CLIENT_KEY:}
+      secret-key: ${MUSE_TOSS_SECRET_KEY:}
+      api-base-url: ${MUSE_TOSS_API_BASE_URL:https://api.tosspayments.com}

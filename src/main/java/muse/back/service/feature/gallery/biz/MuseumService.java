@@ -11,6 +11,9 @@ import muse.back.service.database.pub.dto.MyMuseumArtworkResponse;
 import muse.back.service.database.pub.dto.MyMuseumCreateRequest;
 import muse.back.service.database.pub.dto.MyMuseumResponse;
 import muse.back.service.database.pub.dto.MyMuseumUpdateRequest;
+import muse.back.service.database.pub.dto.MuseumArtworkReorderRequest;
+import muse.back.service.database.pub.dto.MuseumArtworkUpdateRequest;
+import muse.back.service.database.pub.dto.MuseumCurationUpdateRequest;
 import muse.back.service.database.pub.dto.PublicMuseumDetailResponse;
 import muse.back.service.database.pub.dto.PublicMuseumSummaryResponse;
 import muse.back.service.database.pub.entity.Museum;
@@ -19,18 +22,24 @@ import muse.back.service.database.pub.entity.ProfileArtist;
 import muse.back.service.database.pub.repository.MuseumArtworkRepository;
 import muse.back.service.database.pub.repository.MuseumRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
+import muse.back.service.database.pub.repository.ArtistFollowRepository;
 import muse.back.service.common.util.ImageFileUrlResolver;
 import muse.back.service.common.util.ImageFinalizeClient;
+import muse.back.service.common.util.ImageCleanupService;
+import muse.back.service.feature.notification.biz.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import web.common.core.response.base.exception.GeneralException;
 import web.common.core.response.base.vo.Code;
 
+import java.net.URI;
 import java.util.Comparator;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,12 +56,19 @@ public class MuseumService {
             MODERATION_REMOVED
     );
     private static final String MUSEUM_IMAGE_TARGET_DIR = "muse/gallery/artworks";
+    private static final Set<String> PUBLISH_STATUSES = Set.of("DRAFT", "SCHEDULED", "PUBLISHED");
+    private static final Set<String> LAYOUT_PRESETS = Set.of("SALON", "LINEAR", "IMMERSIVE");
+    private static final Set<String> LIGHTING_PRESETS = Set.of("WARM", "NEUTRAL", "DRAMATIC");
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
 
     private final MuseumRepository museumRepository;
     private final MuseumArtworkRepository museumArtworkRepository;
     private final ProfileArtistRepository profileArtistRepository;
     private final ImageFinalizeClient imageFinalizeClient;
     private final ImageFileUrlResolver imageFileUrlResolver;
+    private final ImageCleanupService imageCleanupService;
+    private final ArtistFollowRepository artistFollowRepository;
+    private final NotificationService notificationService;
 
     public List<PublicMuseumSummaryResponse> getPublicMuseums() {
         List<Museum> museums = museumRepository.findByIsPublicTrueOrderByMuseumIdDesc()
@@ -64,17 +80,17 @@ public class MuseumService {
         Map<Long, String> ownerNames = resolveArtistNameMap(
                 museums.stream().map(Museum::getArtistId).collect(Collectors.toSet())
         );
+        Map<Long, List<MuseumArtwork>> visibleArtworkMap = loadArtworkMap(museums, MODERATION_VISIBLE);
 
         return museums.stream()
                 .map(museum -> {
-                    List<MuseumArtwork> visibleArtworks = museumArtworkRepository
-                            .findByMuseumIdAndModerationStatusOrderByMuseumArtworkIdDesc(
-                                    museum.getMuseumId(),
-                                    MODERATION_VISIBLE
-                            );
-                    String coverImageUrl = visibleArtworks.isEmpty()
-                            ? null
-                            : imageFileUrlResolver.resolveImageUrl(visibleArtworks.get(0).getFileName());
+                    List<MuseumArtwork> visibleArtworks = visibleArtworkMap
+                            .getOrDefault(museum.getMuseumId(), List.of());
+                    MuseumArtwork cover = visibleArtworks.stream()
+                            .filter(item -> item.getMuseumArtworkId().equals(museum.getCoverArtworkId()))
+                            .findFirst()
+                            .orElse(visibleArtworks.isEmpty() ? null : visibleArtworks.get(0));
+                    String coverImageUrl = cover == null ? null : resolveArtworkImageUrl(cover);
                     return new PublicMuseumSummaryResponse(
                             museum.getMuseumId(),
                             museum.getName(),
@@ -96,14 +112,26 @@ public class MuseumService {
         }
 
         String ownerName = resolveArtistName(museum.getArtistId());
-        List<PublicMuseumDetailResponse.Artwork> artworks = museumArtworkRepository
-                .findByMuseumIdAndModerationStatusOrderByMuseumArtworkIdDesc(museumId, MODERATION_VISIBLE)
+        boolean contentAvailable = museum.getOpeningAt() == null
+                || !LocalDateTime.now(SERVICE_ZONE).isBefore(museum.getOpeningAt());
+        List<PublicMuseumDetailResponse.Artwork> artworks = (contentAvailable
+                ? museumArtworkRepository.findByMuseumIdAndModerationStatusOrderBySortOrderAscMuseumArtworkIdAsc(
+                        museumId, MODERATION_VISIBLE
+                )
+                : List.<MuseumArtwork>of())
                 .stream()
                 .map(artwork -> new PublicMuseumDetailResponse.Artwork(
                         artwork.getMuseumArtworkId(),
                         artwork.getTitle(),
                         artwork.getDescription(),
-                        imageFileUrlResolver.resolveImageUrl(artwork.getFileName())
+                        resolveArtworkImageUrl(artwork),
+                        artwork.getSortOrder(),
+                        artwork.getRoomLabel(),
+                        artwork.getFocalX(),
+                        artwork.getFocalY(),
+                        artwork.getAudioUrl(),
+                        artwork.getAudioTranscript(),
+                        artwork.getLightingPreset()
                 ))
                 .toList();
 
@@ -111,17 +139,30 @@ public class MuseumService {
                 museum.getMuseumId(),
                 museum.getName(),
                 museum.getDescription(),
+                museum.getArtistId(),
                 ownerName,
                 museum.isFeatured(),
+                museum.getPublishStatus(),
+                museum.getOpeningAt(),
+                museum.getCuratorNote(),
+                museum.getLayoutPreset(),
+                museum.getLightingPreset(),
+                museum.getCoverArtworkId(),
+                contentAvailable,
                 artworks
         );
     }
 
     public List<MyMuseumResponse> getMyMuseums(String userKey) {
         Long artistId = resolveArtistId(userKey);
-        return museumRepository.findByArtistIdOrderByMuseumIdDesc(artistId)
+        List<Museum> museums = museumRepository.findByArtistIdOrderByMuseumIdDesc(artistId);
+        Map<Long, Long> artworkCountMap = loadArtworkCountMap(museums);
+        return museums
                 .stream()
-                .map(this::toMyMuseumResponse)
+                .map(museum -> toMyMuseumResponse(
+                        museum,
+                        artworkCountMap.getOrDefault(museum.getMuseumId(), 0L)
+                ))
                 .toList();
     }
 
@@ -133,7 +174,7 @@ public class MuseumService {
                 artistId,
                 request.name().trim(),
                 trimToNull(request.description()),
-                request.isPublic() == null || request.isPublic(),
+                false,
                 false
         ));
         return toMyMuseumResponse(museum);
@@ -145,13 +186,69 @@ public class MuseumService {
         Long artistId = resolveArtistId(userKey);
         Museum museum = museumRepository.findByMuseumIdAndArtistId(museumId, artistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
-        museum.updateByOwner(
+        museum.updateMetadata(
                 request.name().trim(),
-                trimToNull(request.description()),
-                request.isPublic() == null || request.isPublic()
+                trimToNull(request.description())
         );
         museumRepository.save(museum);
         return toMyMuseumResponse(museum);
+    }
+
+    @Transactional
+    public MyMuseumResponse updateCuration(
+            Long museumId,
+            String userKey,
+            MuseumCurationUpdateRequest request
+    ) {
+        Long artistId = resolveArtistId(userKey);
+        Museum museum = museumRepository.findByMuseumIdAndArtistId(museumId, artistId)
+                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
+        if (request == null) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Request body is required");
+        }
+        String publishStatus = normalizeEnum(request.publishStatus(), PUBLISH_STATUSES, "publishStatus");
+        String previousPublishStatus = museum.getPublishStatus();
+        String layoutPreset = normalizeEnum(request.layoutPreset(), LAYOUT_PRESETS, "layoutPreset");
+        String lightingPreset = normalizeEnum(request.lightingPreset(), LIGHTING_PRESETS, "lightingPreset");
+        if ("SCHEDULED".equals(publishStatus)
+                && (request.openingAt() == null || !request.openingAt().isAfter(LocalDateTime.now(SERVICE_ZONE)))) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Scheduled museum requires a future openingAt");
+        }
+        long visibleCount = museumArtworkRepository.countByMuseumIdAndModerationStatus(museumId, MODERATION_VISIBLE);
+        if (!"DRAFT".equals(publishStatus) && visibleCount == 0) {
+            throw new GeneralException(Code.CONFLICT, "At least one visible artwork is required to publish");
+        }
+        if (request.coverArtworkId() != null) {
+            MuseumArtwork cover = museumArtworkRepository
+                    .findByMuseumArtworkIdAndMuseumId(request.coverArtworkId(), museumId)
+                    .orElseThrow(() -> new GeneralException(Code.VALIDATION_ERROR, "Cover artwork not found"));
+            if (!MODERATION_VISIBLE.equals(cover.getModerationStatus()) && !"DRAFT".equals(publishStatus)) {
+                throw new GeneralException(Code.CONFLICT, "Cover artwork is not publicly visible");
+            }
+        }
+        museum.updateCuration(
+                publishStatus,
+                request.coverArtworkId(),
+                request.openingAt(),
+                trimToNull(request.curatorNote()),
+                layoutPreset,
+                lightingPreset
+        );
+        Museum saved = museumRepository.save(museum);
+        if (!publishStatus.equals(previousPublishStatus) && !"DRAFT".equals(publishStatus)) {
+            String message = "SCHEDULED".equals(publishStatus)
+                    ? museum.getName() + " 전시의 오픈 일정이 공개되었습니다."
+                    : museum.getName() + " 전시가 새롭게 공개되었습니다.";
+            artistFollowRepository.findByFollowedArtistId(artistId).forEach(follow -> notificationService.create(
+                    follow.getFollowerArtistId(),
+                    "MUSEUM_OPENING",
+                    "팔로우한 작가의 새 전시",
+                    message,
+                    "/gallery/museums/" + museumId,
+                    "MUSEUM_OPENING:" + museumId + ":" + publishStatus
+            ));
+        }
+        return toMyMuseumResponse(saved);
     }
 
     @Transactional
@@ -159,6 +256,11 @@ public class MuseumService {
         Long artistId = resolveArtistId(userKey);
         Museum museum = museumRepository.findByMuseumIdAndArtistId(museumId, artistId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
+        museumArtworkRepository.findByMuseumIdOrderByMuseumArtworkIdDesc(museumId)
+                .forEach(artwork -> imageCleanupService.enqueue(
+                        artwork.getFileName(),
+                        "MUSEUM_DELETED"
+                ));
         museumArtworkRepository.deleteByMuseumId(museumId);
         museumRepository.delete(museum);
     }
@@ -166,7 +268,7 @@ public class MuseumService {
     public List<MyMuseumArtworkResponse> getMyMuseumArtworks(Long museumId, String userKey) {
         Long artistId = resolveArtistId(userKey);
         requireMuseumOwner(museumId, artistId);
-        return museumArtworkRepository.findByMuseumIdOrderByMuseumArtworkIdDesc(museumId)
+        return museumArtworkRepository.findByMuseumIdOrderBySortOrderAscMuseumArtworkIdAsc(museumId)
                 .stream()
                 .map(this::toMyMuseumArtworkResponse)
                 .toList();
@@ -181,19 +283,88 @@ public class MuseumService {
         Long artistId = resolveArtistId(userKey);
         requireMuseumOwner(museumId, artistId);
         validateMuseumArtworkCreateRequest(request);
-        String finalizedImageFileName = imageFinalizeClient
-                .finalizeImage(request.fileName(), MUSEUM_IMAGE_TARGET_DIR)
-                .fileName();
+        ImageFinalizeClient.FinalizedImage finalizedImage = imageFinalizeClient.finalizeImage(
+                request.fileName(),
+                MUSEUM_IMAGE_TARGET_DIR
+        );
+        String finalizedImageFileName = finalizedImage.fileName();
+        try {
+            MuseumArtwork artwork = museumArtworkRepository.save(new MuseumArtwork(
+                    museumId,
+                    artistId,
+                    request.title().trim(),
+                    trimToNull(request.description()),
+                    finalizedImageFileName,
+                    toPortableImagePath(finalizedImageFileName),
+                    MODERATION_REVIEWING
+            ));
+            int nextSortOrder = museumArtworkRepository.findByMuseumIdOrderBySortOrderAscMuseumArtworkIdAsc(museumId)
+                    .stream().mapToInt(MuseumArtwork::getSortOrder).max().orElse(-1) + 1;
+            artwork.updateSortOrder(nextSortOrder);
+            return toMyMuseumArtworkResponse(artwork);
+        } catch (RuntimeException exception) {
+            imageCleanupService.enqueueCompensation(finalizedImageFileName, "MUSEUM_ARTWORK_ROLLBACK");
+            throw exception;
+        }
+    }
 
-        MuseumArtwork artwork = museumArtworkRepository.save(new MuseumArtwork(
-                museumId,
-                artistId,
-                request.title().trim(),
-                trimToNull(request.description()),
-                finalizedImageFileName,
-                MODERATION_REVIEWING
-        ));
-        return toMyMuseumArtworkResponse(artwork);
+    @Transactional
+    public MyMuseumArtworkResponse updateMyMuseumArtwork(
+            Long museumId,
+            Long museumArtworkId,
+            String userKey,
+            MuseumArtworkUpdateRequest request
+    ) {
+        Long artistId = resolveArtistId(userKey);
+        requireMuseumOwner(museumId, artistId);
+        if (request == null) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Request body is required");
+        }
+        MuseumArtwork artwork = museumArtworkRepository.findByMuseumArtworkIdAndMuseumId(museumArtworkId, museumId)
+                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum artwork not found"));
+        String lightingPreset = normalizeEnum(request.lightingPreset(), LIGHTING_PRESETS, "lightingPreset");
+        String audioUrl = trimToNull(request.audioUrl());
+        String audioTranscript = trimToNull(request.audioTranscript());
+        validateAudioGuide(audioUrl, audioTranscript);
+        artwork.updateCuration(
+                request.title().trim(), trimToNull(request.description()), request.sortOrder(),
+                trimToNull(request.roomLabel()), request.focalX(), request.focalY(),
+                audioUrl, audioTranscript, lightingPreset
+        );
+        return toMyMuseumArtworkResponse(museumArtworkRepository.save(artwork));
+    }
+
+    @Transactional
+    public List<MyMuseumArtworkResponse> reorderMyMuseumArtworks(
+            Long museumId,
+            String userKey,
+            MuseumArtworkReorderRequest request
+    ) {
+        Long artistId = resolveArtistId(userKey);
+        requireMuseumOwner(museumId, artistId);
+        if (request == null || request.items() == null || request.items().isEmpty()) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Artwork order is required");
+        }
+        List<MuseumArtwork> artworks = museumArtworkRepository.findByMuseumIdOrderBySortOrderAscMuseumArtworkIdAsc(museumId);
+        Map<Long, MuseumArtwork> artworkMap = artworks.stream()
+                .collect(Collectors.toMap(MuseumArtwork::getMuseumArtworkId, artwork -> artwork));
+        Set<Long> requestedIds = new HashSet<>();
+        for (MuseumArtworkReorderRequest.Item item : request.items()) {
+            if (item == null || item.museumArtworkId() == null || !requestedIds.add(item.museumArtworkId())) {
+                throw new GeneralException(Code.VALIDATION_ERROR, "Artwork order contains a duplicate or null id");
+            }
+            MuseumArtwork artwork = artworkMap.get(item.museumArtworkId());
+            if (artwork == null) {
+                throw new GeneralException(Code.VALIDATION_ERROR, "Artwork does not belong to museum");
+            }
+            artwork.updateSortOrder(item.sortOrder());
+        }
+        if (requestedIds.size() != artworks.size()) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Artwork order must include every museum artwork");
+        }
+        museumArtworkRepository.saveAll(artworks);
+        return museumArtworkRepository.findByMuseumIdOrderBySortOrderAscMuseumArtworkIdAsc(museumId)
+                .stream().map(this::toMyMuseumArtworkResponse).toList();
     }
 
     @Transactional
@@ -202,6 +373,7 @@ public class MuseumService {
         requireMuseumOwner(museumId, artistId);
         MuseumArtwork artwork = museumArtworkRepository.findByMuseumArtworkIdAndMuseumId(museumArtworkId, museumId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum artwork not found"));
+        imageCleanupService.enqueue(artwork.getFileName(), "MUSEUM_ARTWORK_DELETED");
         museumArtworkRepository.delete(artwork);
     }
 
@@ -210,27 +382,12 @@ public class MuseumService {
         Map<Long, String> ownerNames = resolveArtistNameMap(
                 museums.stream().map(Museum::getArtistId).collect(Collectors.toSet())
         );
+        Map<Long, Map<String, Long>> statusCountMap = loadArtworkStatusCountMap(museums);
         return museums.stream()
-                .map(museum -> new AdminMuseumResponse(
-                        museum.getMuseumId(),
-                        museum.getArtistId(),
+                .map(museum -> toAdminMuseumResponse(
+                        museum,
                         ownerNames.getOrDefault(museum.getArtistId(), "Unknown Artist"),
-                        museum.getName(),
-                        museum.getDescription(),
-                        museum.isPublic(),
-                        museum.isFeatured(),
-                        Math.toIntExact(museumArtworkRepository.countByMuseumIdAndModerationStatus(
-                                museum.getMuseumId(),
-                                MODERATION_REVIEWING
-                        )),
-                        Math.toIntExact(museumArtworkRepository.countByMuseumIdAndModerationStatus(
-                                museum.getMuseumId(),
-                                MODERATION_VISIBLE
-                        )),
-                        Math.toIntExact(museumArtworkRepository.countByMuseumIdAndModerationStatus(
-                                museum.getMuseumId(),
-                                MODERATION_REMOVED
-                        ))
+                        statusCountMap.getOrDefault(museum.getMuseumId(), Map.of())
                 ))
                 .toList();
     }
@@ -294,6 +451,7 @@ public class MuseumService {
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
         MuseumArtwork artwork = museumArtworkRepository.findByMuseumArtworkIdAndMuseumId(museumArtworkId, museumId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum artwork not found"));
+        imageCleanupService.enqueue(artwork.getFileName(), "MUSEUM_ARTWORK_ADMIN_DELETED");
         museumArtworkRepository.delete(artwork);
     }
 
@@ -321,6 +479,44 @@ public class MuseumService {
         return profileArtistRepository.findAllById(artistIds)
                 .stream()
                 .collect(Collectors.toMap(ProfileArtist::getArtistId, ProfileArtist::getName));
+    }
+
+    private Map<Long, List<MuseumArtwork>> loadArtworkMap(List<Museum> museums, String moderationStatus) {
+        if (museums.isEmpty()) {
+            return Map.of();
+        }
+        return museumArtworkRepository
+                .findByMuseumIdInAndModerationStatusOrderByMuseumIdAscMuseumArtworkIdDesc(
+                        museums.stream().map(Museum::getMuseumId).toList(),
+                        moderationStatus
+                )
+                .stream()
+                .collect(Collectors.groupingBy(MuseumArtwork::getMuseumId));
+    }
+
+    private Map<Long, Long> loadArtworkCountMap(List<Museum> museums) {
+        if (museums.isEmpty()) {
+            return Map.of();
+        }
+        return museumArtworkRepository.findByMuseumIdIn(
+                        museums.stream().map(Museum::getMuseumId).toList()
+                )
+                .stream()
+                .collect(Collectors.groupingBy(MuseumArtwork::getMuseumId, Collectors.counting()));
+    }
+
+    private Map<Long, Map<String, Long>> loadArtworkStatusCountMap(List<Museum> museums) {
+        if (museums.isEmpty()) {
+            return Map.of();
+        }
+        return museumArtworkRepository.findByMuseumIdIn(
+                        museums.stream().map(Museum::getMuseumId).toList()
+                )
+                .stream()
+                .collect(Collectors.groupingBy(
+                        MuseumArtwork::getMuseumId,
+                        Collectors.groupingBy(MuseumArtwork::getModerationStatus, Collectors.counting())
+                ));
     }
 
     private void validateMuseumUpsertRequest(String name) {
@@ -352,38 +548,94 @@ public class MuseumService {
         return normalized;
     }
 
+    private String normalizeEnum(String value, Set<String> allowed, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new GeneralException(Code.VALIDATION_ERROR, fieldName + " is required");
+        }
+        String normalized = value.trim().toUpperCase();
+        if (!allowed.contains(normalized)) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Invalid " + fieldName);
+        }
+        return normalized;
+    }
+
+    private void validateAudioGuide(String audioUrl, String audioTranscript) {
+        if (audioUrl == null) {
+            return;
+        }
+        if (audioTranscript == null) {
+            throw new GeneralException(Code.VALIDATION_ERROR, "Audio transcript is required with audioUrl");
+        }
+        if (audioUrl.startsWith("/") && !audioUrl.startsWith("//")) {
+            return;
+        }
+        try {
+            URI uri = URI.create(audioUrl);
+            String scheme = uri.getScheme();
+            if (uri.getHost() != null && ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme))) {
+                return;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Converted to the public validation contract below.
+        }
+        throw new GeneralException(Code.VALIDATION_ERROR, "audioUrl must be an HTTP(S) or service-relative URL");
+    }
+
     private MyMuseumResponse toMyMuseumResponse(Museum museum) {
+        return toMyMuseumResponse(museum, museumArtworkRepository.countByMuseumId(museum.getMuseumId()));
+    }
+
+    private MyMuseumResponse toMyMuseumResponse(Museum museum, long artworkCount) {
         return new MyMuseumResponse(
                 museum.getMuseumId(),
                 museum.getName(),
                 museum.getDescription(),
                 museum.isPublic(),
                 museum.isFeatured(),
-                Math.toIntExact(museumArtworkRepository.countByMuseumId(museum.getMuseumId()))
+                Math.toIntExact(artworkCount),
+                museum.getPublishStatus(),
+                museum.getCoverArtworkId(),
+                museum.getOpeningAt(),
+                museum.getCuratorNote(),
+                museum.getLayoutPreset(),
+                museum.getLightingPreset()
         );
     }
 
     private AdminMuseumResponse toAdminMuseumResponse(Museum museum) {
+        return toAdminMuseumResponse(
+                museum,
+                resolveArtistName(museum.getArtistId()),
+                Map.of(
+                        MODERATION_REVIEWING, museumArtworkRepository.countByMuseumIdAndModerationStatus(
+                                museum.getMuseumId(), MODERATION_REVIEWING
+                        ),
+                        MODERATION_VISIBLE, museumArtworkRepository.countByMuseumIdAndModerationStatus(
+                                museum.getMuseumId(), MODERATION_VISIBLE
+                        ),
+                        MODERATION_REMOVED, museumArtworkRepository.countByMuseumIdAndModerationStatus(
+                                museum.getMuseumId(), MODERATION_REMOVED
+                        )
+                )
+        );
+    }
+
+    private AdminMuseumResponse toAdminMuseumResponse(
+            Museum museum,
+            String ownerName,
+            Map<String, Long> statusCounts
+    ) {
         return new AdminMuseumResponse(
                 museum.getMuseumId(),
                 museum.getArtistId(),
-                resolveArtistName(museum.getArtistId()),
+                ownerName,
                 museum.getName(),
                 museum.getDescription(),
                 museum.isPublic(),
                 museum.isFeatured(),
-                Math.toIntExact(museumArtworkRepository.countByMuseumIdAndModerationStatus(
-                        museum.getMuseumId(),
-                        MODERATION_REVIEWING
-                )),
-                Math.toIntExact(museumArtworkRepository.countByMuseumIdAndModerationStatus(
-                        museum.getMuseumId(),
-                        MODERATION_VISIBLE
-                )),
-                Math.toIntExact(museumArtworkRepository.countByMuseumIdAndModerationStatus(
-                        museum.getMuseumId(),
-                        MODERATION_REMOVED
-                ))
+                Math.toIntExact(statusCounts.getOrDefault(MODERATION_REVIEWING, 0L)),
+                Math.toIntExact(statusCounts.getOrDefault(MODERATION_VISIBLE, 0L)),
+                Math.toIntExact(statusCounts.getOrDefault(MODERATION_REMOVED, 0L))
         );
     }
 
@@ -394,9 +646,16 @@ public class MuseumService {
                 artwork.getTitle(),
                 artwork.getDescription(),
                 artwork.getFileName(),
-                imageFileUrlResolver.resolveImageUrl(artwork.getFileName()),
+                resolveArtworkImageUrl(artwork),
                 artwork.getModerationStatus(),
-                artwork.getCreatedAt()
+                artwork.getCreatedAt(),
+                artwork.getSortOrder(),
+                artwork.getRoomLabel(),
+                artwork.getFocalX(),
+                artwork.getFocalY(),
+                artwork.getAudioUrl(),
+                artwork.getAudioTranscript(),
+                artwork.getLightingPreset()
         );
     }
 
@@ -409,7 +668,7 @@ public class MuseumService {
                 artwork.getTitle(),
                 artwork.getDescription(),
                 artwork.getFileName(),
-                imageFileUrlResolver.resolveImageUrl(artwork.getFileName()),
+                resolveArtworkImageUrl(artwork),
                 artwork.getModerationStatus(),
                 artwork.getCreatedAt()
         );
@@ -421,5 +680,14 @@ public class MuseumService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String resolveArtworkImageUrl(MuseumArtwork artwork) {
+        return imageFileUrlResolver.resolveImageUrl(artwork.getFileName(), artwork.getImageUrl());
+    }
+
+    private String toPortableImagePath(String fileName) {
+        String normalized = fileName.startsWith("/") ? fileName.substring(1) : fileName;
+        return "/images/" + normalized;
     }
 }

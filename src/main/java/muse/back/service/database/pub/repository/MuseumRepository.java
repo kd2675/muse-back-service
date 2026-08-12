@@ -15,4 +15,6 @@ public interface MuseumRepository extends JpaRepository<Museum, Long> {
     List<Museum> findByIsPublicTrueOrderByMuseumIdDesc();
 
     Optional<Museum> findByMuseumIdAndArtistId(Long museumId, Long artistId);
+
+    List<Museum> findTop20ByIsPublicTrueAndNameContainingIgnoreCaseOrderByMuseumIdDesc(String name);
 }

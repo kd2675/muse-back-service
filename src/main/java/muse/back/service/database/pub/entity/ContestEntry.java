@@ -34,6 +34,9 @@ public class ContestEntry extends CommonDateEntity {
     @Column(name = "file_name", length = 255, nullable = false)
     private String fileName;
 
+    @Column(name = "image_url", nullable = false, length = 500)
+    private String imageUrl;
+
     @Column(name = "status", length = 20, nullable = false)
     private String status;
 
@@ -46,12 +49,26 @@ public class ContestEntry extends CommonDateEntity {
             String fileName,
             String status
     ) {
+        this(entryId, artistId, contestId, title, description, fileName, null, status);
+    }
+
+    public ContestEntry(
+            String entryId,
+            Long artistId,
+            Long contestId,
+            String title,
+            String description,
+            String fileName,
+            String imageUrl,
+            String status
+    ) {
         this.entryId = entryId;
         this.artistId = artistId;
         this.contestId = contestId;
         this.title = title;
         this.description = description;
         this.fileName = fileName;
+        this.imageUrl = imageUrl;
         this.status = status;
     }
 
