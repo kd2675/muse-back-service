@@ -1,8 +1,18 @@
 package muse.back.service.feature.gallery.biz;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import muse.back.service.common.util.ImageCleanupService;
 import muse.back.service.common.util.ImageFileUrlResolver;
 import muse.back.service.common.util.ImageFinalizeClient;
+import muse.back.service.database.pub.dto.AdminMuseumVisibilityUpdateRequest;
 import muse.back.service.database.pub.dto.MyMuseumCreateRequest;
 import muse.back.service.database.pub.dto.MyMuseumUpdateRequest;
 import muse.back.service.database.pub.dto.MuseumArtworkUpdateRequest;
@@ -15,18 +25,11 @@ import muse.back.service.database.pub.repository.MuseumArtworkRepository;
 import muse.back.service.database.pub.repository.MuseumRepository;
 import muse.back.service.database.pub.repository.ProfileArtistRepository;
 import muse.back.service.feature.notification.biz.NotificationService;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import web.common.core.response.base.exception.GeneralException;
-
-import java.time.LocalDateTime;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -119,5 +122,40 @@ class MuseumServiceTest {
                         )
                 )
         );
+    }
+
+    @Test
+    void updateAdminMuseumVisibility_noVisibleArtwork_rejectsEmptyPublication() {
+        Museum museum = new Museum(10L, "Night Archive", "desc", false, false);
+        when(museumRepository.findById(1L)).thenReturn(Optional.of(museum));
+        when(museumArtworkRepository.countByMuseumIdAndModerationStatus(1L, "VISIBLE")).thenReturn(0L);
+
+        assertThrows(
+                GeneralException.class,
+                () -> museumService.updateAdminMuseumVisibility(
+                        1L,
+                        new AdminMuseumVisibilityUpdateRequest(true)
+                )
+        );
+    }
+
+    @Test
+    void deleteMyMuseumArtwork_lastVisibleArtwork_movesPublishedMuseumToDraft() {
+        Museum museum = org.mockito.Mockito.mock(Museum.class);
+        MuseumArtwork artwork = org.mockito.Mockito.mock(MuseumArtwork.class);
+        when(profileArtistRepository.findByUserKey("user-1"))
+                .thenReturn(Optional.of(new ProfileArtist(10L, "user-1", "Artist", null, "#111111")));
+        when(museumRepository.findByMuseumIdAndArtistId(1L, 10L)).thenReturn(Optional.of(museum));
+        when(museumArtworkRepository.findByMuseumArtworkIdAndMuseumId(2L, 1L)).thenReturn(Optional.of(artwork));
+        when(museum.getMuseumId()).thenReturn(1L);
+        when(museum.isPublic()).thenReturn(true);
+        when(artwork.getMuseumArtworkId()).thenReturn(2L);
+        when(artwork.getModerationStatus()).thenReturn("VISIBLE");
+        when(artwork.getFileName()).thenReturn("work.jpg");
+        when(museumArtworkRepository.countByMuseumIdAndModerationStatus(1L, "VISIBLE")).thenReturn(1L);
+
+        museumService.deleteMyMuseumArtwork(1L, 2L, "user-1");
+
+        verify(museum).updateVisibility(false);
     }
 }

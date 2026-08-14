@@ -1,7 +1,10 @@
 package muse.back.service.common.util;
 
+import java.time.Duration;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import web.common.core.response.base.exception.GeneralException;
@@ -16,13 +19,19 @@ public class ImageFinalizeClient {
 
     public ImageFinalizeClient(
             @Value("${integration.image.base-url:http://localhost:8081}") String imageBaseUrl,
-            @Value("${integration.image.internal-token}") String internalToken
+            @Value("${integration.image.internal-token}") String internalToken,
+            @Value("${integration.image.connect-timeout:3s}") Duration connectTimeout,
+            @Value("${integration.image.read-timeout:15s}") Duration readTimeout
     ) {
         if (internalToken == null || internalToken.isBlank()) {
             throw new IllegalStateException("integration.image.internal-token must be configured");
         }
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeout);
+        requestFactory.setReadTimeout(readTimeout);
         this.restClient = RestClient.builder()
                 .baseUrl(imageBaseUrl)
+                .requestFactory(requestFactory)
                 .build();
         this.internalToken = internalToken;
     }

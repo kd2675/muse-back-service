@@ -1,5 +1,11 @@
 package muse.back.service.feature.gallery.biz;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import muse.back.service.common.util.ImageFileUrlResolver;
 import muse.back.service.database.pub.dto.MuseumBookmarkResponse;
@@ -20,15 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 import web.common.core.response.base.exception.GeneralException;
 import web.common.core.response.base.vo.Code;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class GalleryEngagementService {
     private static final String VISIBLE = "VISIBLE";
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
     private final ArtistIdentityService artistIdentityService;
     private final MuseumRepository museumRepository;
     private final MuseumArtworkRepository artworkRepository;
@@ -104,7 +107,7 @@ public class GalleryEngagementService {
     }
 
     private boolean isPublished(Museum museum) {
-        return museum != null && museum.isPublic() && "PUBLISHED".equals(museum.getPublishStatus());
+        return museum != null && museum.isContentAvailableAt(LocalDateTime.now(SERVICE_ZONE));
     }
 
     private MuseumBookmarkResponse toBookmarkResponse(Museum museum, boolean bookmarked) {

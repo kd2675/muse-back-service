@@ -112,8 +112,7 @@ public class MuseumService {
         }
 
         String ownerName = resolveArtistName(museum.getArtistId());
-        boolean contentAvailable = museum.getOpeningAt() == null
-                || !LocalDateTime.now(SERVICE_ZONE).isBefore(museum.getOpeningAt());
+        boolean contentAvailable = museum.isContentAvailableAt(LocalDateTime.now(SERVICE_ZONE));
         List<PublicMuseumDetailResponse.Artwork> artworks = (contentAvailable
                 ? museumArtworkRepository.findByMuseumIdAndModerationStatusOrderBySortOrderAscMuseumArtworkIdAsc(
                         museumId, MODERATION_VISIBLE
@@ -370,9 +369,11 @@ public class MuseumService {
     @Transactional
     public void deleteMyMuseumArtwork(Long museumId, Long museumArtworkId, String userKey) {
         Long artistId = resolveArtistId(userKey);
-        requireMuseumOwner(museumId, artistId);
+        Museum museum = museumRepository.findByMuseumIdAndArtistId(museumId, artistId)
+                .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
         MuseumArtwork artwork = museumArtworkRepository.findByMuseumArtworkIdAndMuseumId(museumArtworkId, museumId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum artwork not found"));
+        reconcileMuseumAfterArtworkRemoval(museum, artwork);
         imageCleanupService.enqueue(artwork.getFileName(), "MUSEUM_ARTWORK_DELETED");
         museumArtworkRepository.delete(artwork);
     }
@@ -411,6 +412,10 @@ public class MuseumService {
         if (request == null || request.isPublic() == null) {
             throw new GeneralException(Code.VALIDATION_ERROR, "isPublic is required");
         }
+        if (request.isPublic()
+                && museumArtworkRepository.countByMuseumIdAndModerationStatus(museumId, MODERATION_VISIBLE) == 0) {
+            throw new GeneralException(Code.CONFLICT, "At least one visible artwork is required to publish");
+        }
         museum.updateVisibility(request.isPublic());
         museumRepository.save(museum);
         return toAdminMuseumResponse(museum);
@@ -440,6 +445,10 @@ public class MuseumService {
         String moderationStatus = normalizeAdminModerationStatus(
                 request == null ? null : request.moderationStatus()
         );
+        if (MODERATION_VISIBLE.equals(artwork.getModerationStatus())
+                && !MODERATION_VISIBLE.equals(moderationStatus)) {
+            reconcileMuseumAfterArtworkRemoval(museum, artwork);
+        }
         artwork.updateModerationStatus(moderationStatus);
         museumArtworkRepository.save(artwork);
         return toAdminMuseumArtworkResponse(artwork, resolveArtistName(museum.getArtistId()));
@@ -447,12 +456,25 @@ public class MuseumService {
 
     @Transactional
     public void deleteAdminMuseumArtwork(Long museumId, Long museumArtworkId) {
-        museumRepository.findById(museumId)
+        Museum museum = museumRepository.findById(museumId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum not found"));
         MuseumArtwork artwork = museumArtworkRepository.findByMuseumArtworkIdAndMuseumId(museumArtworkId, museumId)
                 .orElseThrow(() -> new GeneralException(Code.NOT_FOUND, "Museum artwork not found"));
+        reconcileMuseumAfterArtworkRemoval(museum, artwork);
         imageCleanupService.enqueue(artwork.getFileName(), "MUSEUM_ARTWORK_ADMIN_DELETED");
         museumArtworkRepository.delete(artwork);
+    }
+
+    private void reconcileMuseumAfterArtworkRemoval(Museum museum, MuseumArtwork artwork) {
+        museum.clearCoverArtworkIf(artwork.getMuseumArtworkId());
+        if (museum.isPublic()
+                && MODERATION_VISIBLE.equals(artwork.getModerationStatus())
+                && museumArtworkRepository.countByMuseumIdAndModerationStatus(
+                        museum.getMuseumId(), MODERATION_VISIBLE
+                ) <= 1) {
+            museum.updateVisibility(false);
+        }
+        museumRepository.save(museum);
     }
 
     private void requireMuseumOwner(Long museumId, Long artistId) {
@@ -486,7 +508,7 @@ public class MuseumService {
             return Map.of();
         }
         return museumArtworkRepository
-                .findByMuseumIdInAndModerationStatusOrderByMuseumIdAscMuseumArtworkIdDesc(
+                .findByMuseumIdInAndModerationStatusOrderByMuseumIdAscSortOrderAscMuseumArtworkIdAsc(
                         museums.stream().map(Museum::getMuseumId).toList(),
                         moderationStatus
                 )

@@ -1,18 +1,20 @@
 package muse.back.service.feature.payment.biz;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Base64;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriUtils;
-import lombok.extern.slf4j.Slf4j;
 import web.common.core.response.base.exception.GeneralException;
 import web.common.core.response.base.vo.Code;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 @Component
 @Slf4j
@@ -26,15 +28,21 @@ public class TossPaymentClient {
             @Value("${muse.payment.toss.enabled:false}") boolean enabled,
             @Value("${muse.payment.toss.client-key:}") String clientKey,
             @Value("${muse.payment.toss.secret-key:}") String secretKey,
-            @Value("${muse.payment.toss.api-base-url:https://api.tosspayments.com}") String apiBaseUrl
+            @Value("${muse.payment.toss.api-base-url:https://api.tosspayments.com}") String apiBaseUrl,
+            @Value("${muse.payment.toss.connect-timeout:3s}") Duration connectTimeout,
+            @Value("${muse.payment.toss.read-timeout:15s}") Duration readTimeout
     ) {
         this.enabled = enabled;
         this.clientKey = clientKey;
         this.secretKey = secretKey;
         String credentials = Base64.getEncoder().encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeout);
+        requestFactory.setReadTimeout(readTimeout);
         this.restClient = RestClient.builder()
                 .baseUrl(apiBaseUrl)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Basic " + credentials)
+                .requestFactory(requestFactory)
                 .build();
     }
 

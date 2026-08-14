@@ -1,5 +1,12 @@
 package muse.back.service.feature.discovery.biz;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import muse.back.service.common.util.ImageFileUrlResolver;
 import muse.back.service.database.pub.dto.DiscoverySearchResponse;
@@ -14,15 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 import web.common.core.response.base.exception.GeneralException;
 import web.common.core.response.base.vo.Code;
 
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DiscoveryService {
     private static final String VISIBLE = "VISIBLE";
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
     private final ProfileArtistRepository artistRepository;
     private final MuseumRepository museumRepository;
     private final MuseumArtworkRepository artworkRepository;
@@ -39,6 +43,7 @@ public class DiscoveryService {
         var artworks = artworkRepository
                 .findTop20ByModerationStatusAndTitleContainingIgnoreCaseOrderByMuseumArtworkIdDesc(VISIBLE, query);
         var contests = contestRepository.findTop20ByThemeContainingIgnoreCaseOrderByContestIdDesc(query);
+        LocalDateTime now = LocalDateTime.now(SERVICE_ZONE);
 
         var artistIds = new java.util.HashSet<Long>();
         museums.forEach(item -> artistIds.add(item.getArtistId()));
@@ -48,17 +53,27 @@ public class DiscoveryService {
 
         var museumIds = artworks.stream().map(MuseumArtwork::getMuseumId).collect(Collectors.toSet());
         var publicMuseumIds = museumRepository.findAllById(museumIds).stream()
-                .filter(item -> item.isPublic() && "PUBLISHED".equals(item.getPublishStatus()))
+                .filter(item -> item.isContentAvailableAt(now))
                 .map(item -> item.getMuseumId()).collect(Collectors.toSet());
+        var availableMuseums = museums.stream()
+                .filter(item -> item.isContentAvailableAt(now))
+                .toList();
+        Map<Long, List<MuseumArtwork>> visibleArtworkMap = availableMuseums.isEmpty()
+                ? Map.of()
+                : artworkRepository
+                        .findByMuseumIdInAndModerationStatusOrderByMuseumIdAscSortOrderAscMuseumArtworkIdAsc(
+                                availableMuseums.stream().map(item -> item.getMuseumId()).toList(), VISIBLE
+                        )
+                        .stream()
+                        .collect(Collectors.groupingBy(MuseumArtwork::getMuseumId));
 
         return new DiscoverySearchResponse(
                 query,
                 artists.stream().map(item -> new DiscoverySearchResponse.Artist(
                         item.getArtistId(), item.getName(), item.getTagline(), item.getProfileColor()
                 )).toList(),
-                museums.stream().filter(item -> "PUBLISHED".equals(item.getPublishStatus())).map(item -> {
-                    var visible = artworkRepository
-                            .findByMuseumIdAndModerationStatusOrderBySortOrderAscMuseumArtworkIdAsc(item.getMuseumId(), VISIBLE);
+                availableMuseums.stream().map(item -> {
+                    var visible = visibleArtworkMap.getOrDefault(item.getMuseumId(), List.of());
                     MuseumArtwork cover = visible.stream()
                             .filter(artwork -> artwork.getMuseumArtworkId().equals(item.getCoverArtworkId()))
                             .findFirst().orElse(visible.isEmpty() ? null : visible.get(0));

@@ -105,7 +105,7 @@ public class OverviewService {
             return Map.of();
         }
         return museumArtworkRepository
-                .findByMuseumIdInAndModerationStatusOrderByMuseumIdAscMuseumArtworkIdDesc(
+                .findByMuseumIdInAndModerationStatusOrderByMuseumIdAscSortOrderAscMuseumArtworkIdAsc(
                         museums.stream().map(Museum::getMuseumId).toList(),
                         "VISIBLE"
                 )

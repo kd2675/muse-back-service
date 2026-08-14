@@ -1,5 +1,7 @@
 package muse.back.service.database.pub.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -10,8 +12,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import muse.back.service.common.jpa.CommonDateEntity;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "museum")
@@ -86,6 +86,24 @@ public class Museum extends CommonDateEntity {
     public void updateVisibility(boolean isPublic) {
         this.isPublic = isPublic;
         this.publishStatus = isPublic ? "PUBLISHED" : "DRAFT";
+    }
+
+    public boolean isContentAvailableAt(LocalDateTime now) {
+        if (!isPublic) {
+            return false;
+        }
+        if ("PUBLISHED".equals(publishStatus)) {
+            return true;
+        }
+        return "SCHEDULED".equals(publishStatus)
+                && openingAt != null
+                && !now.isBefore(openingAt);
+    }
+
+    public void clearCoverArtworkIf(Long museumArtworkId) {
+        if (museumArtworkId != null && museumArtworkId.equals(coverArtworkId)) {
+            this.coverArtworkId = null;
+        }
     }
 
     public void updateCuration(

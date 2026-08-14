@@ -91,6 +91,8 @@ integration:
   image:
     base-url: ${IMAGE_BACK_BASE_URL:http://localhost:8081}
     internal-token: ${ATTACHMENT_INTERNAL_TOKEN:local-semo-attachment-token}
+    connect-timeout: ${MUSE_IMAGE_CONNECT_TIMEOUT:3s}
+    read-timeout: ${MUSE_IMAGE_READ_TIMEOUT:15s}
 
 muse:
   payment:
@@ -100,3 +102,5 @@ muse:
       client-key: ${MUSE_TOSS_CLIENT_KEY:}
       secret-key: ${MUSE_TOSS_SECRET_KEY:}
       api-base-url: ${MUSE_TOSS_API_BASE_URL:https://api.tosspayments.com}
+      connect-timeout: ${MUSE_TOSS_CONNECT_TIMEOUT:3s}
+      read-timeout: ${MUSE_TOSS_READ_TIMEOUT:15s}

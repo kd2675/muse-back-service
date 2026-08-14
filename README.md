@@ -27,7 +27,7 @@ Muse 도메인 백엔드 서비스입니다. Contest, Gallery, Home, Overview, P
 
 | Profile | Port |
 |---|---:|
-| `local` | `20280` |
+| `local` | `20281` (환경 변수 `MUSE_SERVER_PORT`로 변경 가능) |
 | `dev` | `20280` |
 | `prod` | `10280` |
 | `test` | `30280` |
@@ -92,7 +92,7 @@ Muse 도메인 백엔드 서비스입니다. Contest, Gallery, Home, Overview, P
 - `spring.servlet.multipart`가 100MB까지 열려 있어 이미지 업로드 연동을 전제로 합니다.
 - 이미지 URL 처리는 보통 `image-back-server`와 함께 사용합니다.
 - 클라이언트는 보통 Gateway(`cloud-back-server`) 경유 호출을 전제로 합니다.
-- 기존 운영 DB는 코드 배포 전에 `src/main/resources/db/migration/2026-08-12-muse-contest-integrity.sql`과 `2026-08-12-muse-product-expansion.sql`을 순서대로 한 번 적용해야 합니다.
+- 기존 운영 DB는 코드 배포 전에 `src/main/resources/db/migration/2026-08-12-muse-contest-integrity.sql`과 `2026-08-12-muse-product-expansion.sql`을 순서대로 한 번 적용해야 합니다. 두 파일은 MySQL 수동 DDL이며 재실행 가능한 마이그레이션이 아니므로, 적용 전 백업과 `information_schema` 기준 사전 대조가 필요합니다. 실행 중 하나라도 실패했다면 후속 구문을 계속 실행하거나 파일 전체를 재실행하지 말고 실제 컬럼·인덱스·제약조건 상태를 먼저 조정합니다.
 - 일반 결제 웹훅은 수신 본문을 신뢰하지 않고 Toss 결제 조회 API로 주문번호·금액·상태를 다시 확인합니다.
 - 출품권 직접 지급 API는 테스트 프로필에서만 활성화되며 운영 결제는 저장된 주문 금액 검증을 통과해야 합니다.
 - 로컬에서 마이그레이션 전 DB를 조회만 할 때는 `MUSE_IMAGE_CLEANUP_ENABLED=false`가 기본값이며, 운영에서는 정리 outbox를 활성화합니다.

@@ -28,7 +28,7 @@ public interface MuseumArtworkRepository extends JpaRepository<MuseumArtwork, Lo
             String title
     );
 
-    List<MuseumArtwork> findByMuseumIdInAndModerationStatusOrderByMuseumIdAscMuseumArtworkIdDesc(
+    List<MuseumArtwork> findByMuseumIdInAndModerationStatusOrderByMuseumIdAscSortOrderAscMuseumArtworkIdAsc(
             Collection<Long> museumIds,
             String moderationStatus
     );

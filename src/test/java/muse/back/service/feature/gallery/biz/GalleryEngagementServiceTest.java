@@ -42,7 +42,6 @@ class GalleryEngagementServiceTest {
                 .thenReturn(new ProfileArtist(10L, "user-1", "Viewer", null, "#111111"));
         when(viewHistoryRepository.findTop30ByArtistIdOrderByViewedAtDesc(10L)).thenReturn(List.of(history));
         when(unpublishedMuseum.getMuseumId()).thenReturn(30L);
-        when(unpublishedMuseum.isPublic()).thenReturn(false);
         when(museumRepository.findAllById(any())).thenReturn(List.of(unpublishedMuseum));
 
         var response = galleryEngagementService.getHistory("user-1");
